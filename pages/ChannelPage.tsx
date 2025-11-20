@@ -86,8 +86,7 @@ const ChannelPage: React.FC = () => {
                         channelAvatarUrl: channelDetails?.avatarUrl || v.channelAvatarUrl,
                         channelId: channelDetails?.id || v.channelId
                     }));
-                    // API returns accumulated videos, so we simply replace the current state
-                    setVideos(enrichedVideos);
+                    setVideos(prev => pageToken && pageToken !== '1' ? [...prev, ...enrichedVideos] : enrichedVideos);
                     setVideosPageToken(vData.nextPageToken);
                     break;
                 case 'playlists':

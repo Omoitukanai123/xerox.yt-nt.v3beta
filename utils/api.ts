@@ -231,6 +231,7 @@ export async function getChannelDetails(channelId: string): Promise<ChannelDetai
     const channel = data.channel;
     if (!channel) throw new Error(`Channel with ID ${channelId} not found.`);
 
+    // FIX: Handle avatarURL correctly whether it is a string (from API normalization) or object/array
     let avatarUrl = '';
     if (typeof channel.avatar === 'string') {
         avatarUrl = channel.avatar;
@@ -240,21 +241,12 @@ export async function getChannelDetails(channelId: string): Promise<ChannelDetai
         avatarUrl = channel.avatar.url;
     }
 
-    let bannerUrl = undefined;
-    if (typeof channel.banner === 'string') {
-        bannerUrl = channel.banner;
-    } else if (Array.isArray(channel.banner) && channel.banner.length > 0) {
-        bannerUrl = channel.banner[0]?.url;
-    } else if (typeof channel.banner === 'object' && channel.banner?.url) {
-        bannerUrl = channel.banner.url;
-    }
-
     return {
         id: channelId,
         name: channel.name ?? 'No Name',
         avatarUrl: avatarUrl,
         subscriberCount: channel.subscriberCount ?? '非公開',
-        bannerUrl: bannerUrl,
+        bannerUrl: channel.banner?.url || channel.banner,
         description: channel.description ?? '',
         videoCount: parseInt(channel.videoCount?.replace(/,/g, '') ?? '0'),
         handle: channel.name,
@@ -287,7 +279,7 @@ export async function getChannelVideos(channelId: string, pageToken = '1'): Prom
         return video;
     }).filter((v): v is Video => v !== null) ?? [];
     
-    const hasMore = data.hasContinuation ?? (videos.length > 0);
+    const hasMore = videos.length > 0;
     return { videos, nextPageToken: hasMore ? String(page + 1) : undefined };
 }
 
