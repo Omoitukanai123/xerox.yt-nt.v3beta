@@ -51,8 +51,7 @@ interface RecommendationSource {
     preferredFreshness?: string;
     discoveryMode?: string;
     ngKeywords?: string[];
-    // New preferences
-    prefMood?: string;
+    // Preferences
     prefDepth?: string;
     prefVocal?: string;
     prefEra?: string;
@@ -66,7 +65,7 @@ interface RecommendationSource {
 }
 
 // --- SCORING ENGINE ---
-// 各動画に対して、ユーザーの好みに基づいて点数を付けるシステム
+// 各動画に対して、ユーザーの好みに基づいて厳密に点数を付けるシステム
 const calculateScore = (
     video: Video, 
     source: RecommendationSource
@@ -87,7 +86,8 @@ const calculateScore = (
         }
     }
 
-    // 2. Duration Scoring (High Weight: +50)
+    // 2. Duration Scoring (CRITICAL RULE: Strict Filtering)
+    // ユーザーが長さを指定している場合、一致しないものを強力に排除する
     if (source.preferredDurations && source.preferredDurations.length > 0) {
         const sec = parseDurationToSeconds(video.isoDuration);
         let durationMatch = false;
@@ -97,76 +97,73 @@ const calculateScore = (
         if (source.preferredDurations.includes('long') && sec > 1200) durationMatch = true;
 
         if (durationMatch) {
-            score += 50;
-            reasons.push('Duration Match');
+            score += 200; // Huge Bonus for matching preferred duration
+            reasons.push('Duration Match (Priority)');
         } else if (sec > 0) {
-            // Length mismatch penalty
-            score -= 20; 
+            // Huge Penalty for mismatching duration to act as a filter
+            score -= 500; 
+            reasons.push('Duration Mismatch (Penalty)');
         }
     }
 
-    // 3. Preferred Channels (+30)
+    // 3. Preferred Channels (+50)
     if (source.preferredChannels.some(c => lowerChannel.includes(c.toLowerCase()))) {
-        score += 30;
+        score += 50;
         reasons.push('Preferred Channel');
     }
 
-    // 4. Subscribed Channels (+15)
+    // 4. Subscribed Channels (+30)
     if (source.subscribedChannels.some(c => c.id === video.channelId || c.name.toLowerCase() === lowerChannel)) {
-        score += 15;
+        score += 30;
         reasons.push('Subscribed Channel');
     }
 
-    // 5. Keyword Matching (+10 per match)
+    // 5. Keyword Matching (+40 per match - Increased to favor content match over simple subscription)
     source.preferredGenres.forEach(genre => {
         if (fullText.includes(genre.toLowerCase())) {
-            score += 10;
+            score += 40;
             reasons.push(`Genre Match: ${genre}`);
         }
     });
 
-    // 6. Context/Mood Matching (+5 per match)
-    // シンプルなキーワードマッチングで雰囲気をスコアリング
-    const moodKeywords: Record<string, string[]> = {
-        relax: ['relax', 'chill', 'bgm', 'healing', 'sleep', '癒し', '作業用', '睡眠'],
-        energetic: ['hype', 'party', 'dance', 'excited', '高音質', '神回'],
+    // 6. Context/Tag Matching (+30 per match - Increased to help similar new videos surface)
+    const tagKeywords: Record<string, string[]> = {
         casual: ['short', 'funny', 'meme', '切り抜き', 'まとめ', '爆笑'],
-        deep: ['documentary', 'history', 'analysis', '解説', '考察', '講座'],
-        instrumental: ['instrumental', 'no talking', 'off vocal', 'bgm', 'asmr'],
-        vocal: ['cover', 'talk', 'radio', '雑談', '歌ってみた'],
-        retro: ['classic', '80s', '90s', 'retro', '懐かしい', '名作'],
-        modern: ['2024', '2025', 'latest', 'trend', '最新', '流行'],
-        live: ['live', 'stream', 'archive', '配信'],
-        solo: ['solo', 'playing', 'play', 'ぼっち'],
-        collab: ['collab', 'with', 'feat', 'コラボ']
+        deep: ['documentary', 'history', 'analysis', '解説', '考察', '講座', '徹底', '完全'],
+        instrumental: ['instrumental', 'no talking', 'off vocal', 'bgm', 'asmr', '作業用'],
+        vocal: ['cover', 'talk', 'radio', '雑談', '歌ってみた', 'karaoke'],
+        live: ['live', 'stream', 'archive', '配信', '生放送'],
+        solo: ['solo', 'playing', 'play', 'ぼっち', '一人'],
+        collab: ['collab', 'with', 'feat', 'コラボ', 'ゲスト'],
+        entertainment: ['fun', 'variety', 'エンタメ', 'ドッキリ', '企画'],
+        education: ['study', 'learn', 'lesson', '講座', '勉強', 'ニュース'],
+        avatar: ['vtuber', 'anime', '3d', '2d', 'live2d'],
+        real: ['vlog', 'face', 'real', '実写', '顔出し']
     };
 
     const checkContext = (prefVal: string | undefined, key: string) => {
-        if (prefVal && prefVal !== 'any' && moodKeywords[prefVal]) {
-            if (moodKeywords[prefVal].some(k => fullText.includes(k))) {
-                score += 8;
+        if (prefVal && prefVal !== 'any' && tagKeywords[prefVal]) {
+            if (tagKeywords[prefVal].some(k => fullText.includes(k))) {
+                score += 30;
                 reasons.push(`Context: ${prefVal}`);
             }
         }
     };
 
-    checkContext(source.prefMood, 'mood');
     checkContext(source.prefDepth, 'depth');
     checkContext(source.prefVocal, 'vocal');
-    checkContext(source.prefEra, 'era');
     checkContext(source.prefLive, 'live');
     checkContext(source.prefCommunity, 'community');
+    checkContext(source.prefInfoEnt, 'genre');
+    checkContext(source.prefVisual, 'visual');
 
     // 7. Freshness Bonus
     if (source.preferredFreshness === 'new') {
         if (video.uploadedAt.includes('分前') || video.uploadedAt.includes('時間前') || video.uploadedAt.includes('日前') || video.uploadedAt.includes('hours ago')) {
-            score += 10;
+            score += 20;
             reasons.push('Fresh');
         }
     }
-
-    // 8. Random Noise (for diversity)
-    score += Math.random() * 5;
 
     return { score, reasons };
 };
@@ -177,22 +174,20 @@ export const getDeeplyAnalyzedRecommendations = async (sources: RecommendationSo
         searchHistory, watchHistory, subscribedChannels, 
         preferredGenres, preferredChannels, 
         preferredFreshness = 'balanced', discoveryMode = 'balanced',
-        prefMood, prefDepth, prefVocal, prefEra, prefRegion, prefLive, prefInfoEnt, prefPacing, prefVisual, prefCommunity,
+        prefDepth, prefVisual,
         page 
     } = sources;
     
     const queries: Set<string> = new Set();
     
     // ---------------------------------------------------------
-    // 1. Query Generation (Generate broad candidates)
+    // 1. Query Generation
     // ---------------------------------------------------------
 
     // Helper to add context to search queries
     const getContextKeywords = () => {
         const kws: string[] = [];
-        if (prefMood === 'relax') kws.push('relaxing', 'bgm', 'chill');
-        if (prefMood === 'energetic') kws.push('energetic', 'best moments');
-        if (prefDepth === 'deep') kws.push('解説', 'documentary');
+        if (prefDepth === 'deep') kws.push('解説', '考察');
         if (prefVisual === 'avatar') kws.push('Vtuber');
         if (prefVisual === 'real') kws.push('vlog');
         return kws;
@@ -201,27 +196,30 @@ export const getDeeplyAnalyzedRecommendations = async (sources: RecommendationSo
     const contextSuffix = ' ' + shuffleArray(getContextKeywords()).slice(0, 1).join(' ');
     const freshnessSuffix = preferredFreshness === 'new' ? ' new' : '';
 
-    // A. From Explicit Genres
+    // A. From Explicit Genres (Priority)
     preferredGenres.forEach(g => queries.add(`${g}${contextSuffix}${freshnessSuffix}`));
     
     // B. From Preferred Channels
     preferredChannels.forEach(c => queries.add(`${c}${contextSuffix}`));
 
     // C. From Watch History (Analyze recent interests)
-    if (discoveryMode !== 'discovery') {
-        const recentHistory = watchHistory.slice(0, 5);
-        recentHistory.forEach(v => {
-             const keywords = extractKeywords(v.title);
-             if (keywords.length > 0) {
-                 // Pick dominant keyword
-                 queries.add(`${keywords[0]}${contextSuffix}`);
-             }
-        });
-    }
+    // Expanded range to capture more latent interests for new discovery
+    const historyLookback = 15;
+    const recentHistory = watchHistory.slice(0, historyLookback);
+    recentHistory.forEach(v => {
+            const keywords = extractKeywords(v.title);
+            if (keywords.length > 0) {
+                // Add the most significant keyword + context
+                queries.add(`${keywords[0]}${contextSuffix}`);
+                // Occasionally add a second keyword if available to broaden search
+                if (keywords.length > 1 && Math.random() > 0.5) {
+                    queries.add(`${keywords[1]}${contextSuffix}`);
+                }
+            }
+    });
 
     // D. From Subscriptions (if balanced or subscribed mode)
     if (discoveryMode !== 'discovery') {
-        // Subscriptions are handled by direct ID fetching below, but add some keywords too
         const randomSub = subscribedChannels[Math.floor(Math.random() * subscribedChannels.length)];
         if (randomSub) queries.add(`${randomSub.name}${contextSuffix}`);
     }
@@ -229,15 +227,14 @@ export const getDeeplyAnalyzedRecommendations = async (sources: RecommendationSo
     // E. Fallback / Discovery
     if (queries.size === 0 || discoveryMode === 'discovery') {
         queries.add(`Japan trending${contextSuffix}`);
-        queries.add(`Music${contextSuffix}`);
         queries.add(`Gaming${contextSuffix}`);
+        queries.add(`Music${contextSuffix}`);
     }
 
-    // Limit queries per page to avoid API rate limits
-    const uniqueQueries = Array.from(queries).slice(0, 5); // Fetch max 5 distinct queries per load
+    const uniqueQueries = Array.from(queries).slice(0, 6); 
     
     // ---------------------------------------------------------
-    // 2. Fetching (Parallel Requests)
+    // 2. Fetching
     // ---------------------------------------------------------
     
     const fetchPromises: Promise<any>[] = [];
@@ -247,10 +244,9 @@ export const getDeeplyAnalyzedRecommendations = async (sources: RecommendationSo
         fetchPromises.push(searchVideos(q).then(res => res.videos).catch(() => []));
     });
 
-    // Direct Channel Feeds (High reliability source)
+    // Direct Channel Feeds
     if (discoveryMode !== 'discovery' && subscribedChannels.length > 0) {
-        // Pick 3 random subscribed channels to mix in
-        const subsToFetch = shuffleArray(subscribedChannels).slice(0, 3);
+        const subsToFetch = shuffleArray(subscribedChannels).slice(0, 2);
         subsToFetch.forEach(sub => {
             fetchPromises.push(
                 getChannelVideos(sub.id).then(res => 
@@ -279,7 +275,7 @@ export const getDeeplyAnalyzedRecommendations = async (sources: RecommendationSo
     }
 
     // ---------------------------------------------------------
-    // 3. Scoring & Ranking (The Core Logic)
+    // 3. Scoring & Ranking (Strict Mode)
     // ---------------------------------------------------------
 
     const scoredVideos: ScoredVideo[] = uniqueCandidates.map(video => {
@@ -287,15 +283,13 @@ export const getDeeplyAnalyzedRecommendations = async (sources: RecommendationSo
         return { ...video, score, debugReason: reasons };
     });
 
-    // Filter out negative scores (NG items)
-    const validVideos = scoredVideos.filter(v => v.score > -1000);
+    // Filter out negative scores (NG items or Duration Mismatch)
+    // Threshold is slightly lenient (-100) to allow minor mismatches but blocking hard mismatches (-500)
+    const validVideos = scoredVideos.filter(v => v.score > -100);
 
     // Sort by Score Descending
     validVideos.sort((a, b) => b.score - a.score);
 
-    // Return top results (e.g. Top 40)
-    // Mix in a little bit of randomness for lower ranked items to keep it fresh?
-    // For now, strict score ordering is requested ("dedicated system").
-    
+    // Return top results
     return validVideos.slice(0, 50);
 };

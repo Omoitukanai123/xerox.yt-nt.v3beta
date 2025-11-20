@@ -10,20 +10,16 @@ interface PreferenceModalProps {
 
 const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) => {
     const { 
-        preferredGenres, preferredChannels, 
+        preferredGenres, 
         preferredDurations, preferredFreshness, discoveryMode, ngKeywords, ngChannels,
-        prefDepth, prefVocal, prefEra, prefRegion,
-        prefLive, prefInfoEnt, prefPacing, prefVisual, prefCommunity,
+        prefDepth, prefVocal, prefInfoEnt, prefVisual, prefCommunity,
         addPreferredGenre, removePreferredGenre, 
-        addPreferredChannel, removePreferredChannel,
         togglePreferredDuration, setPreferredFreshness, setDiscoveryMode,
         addNgKeyword, removeNgKeyword, removeNgChannel,
-        setPrefDepth, setPrefVocal, setPrefEra, setPrefRegion,
-        setPrefLive, setPrefInfoEnt, setPrefPacing, setPrefVisual, setPrefCommunity
+        setPrefDepth, setPrefVocal, setPrefInfoEnt, setPrefVisual, setPrefCommunity
     } = usePreference();
 
     const [genreInput, setGenreInput] = useState('');
-    const [channelInput, setChannelInput] = useState('');
     const [ngInput, setNgInput] = useState('');
 
     if (!isOpen) return null;
@@ -33,14 +29,6 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
         if (genreInput.trim()) {
             addPreferredGenre(genreInput.trim());
             setGenreInput('');
-        }
-    };
-
-    const handleAddChannel = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (channelInput.trim()) {
-            addPreferredChannel(channelInput.trim());
-            setChannelInput('');
         }
     };
 
@@ -110,7 +98,7 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
                     {/* Section 1: Vibe Check */}
                     <section>
                          <h3 className="text-lg font-bold text-black dark:text-white mb-4 flex items-center gap-2">
-                            好み・雰囲気
+                            映像・音声の好み
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-6">
                              <ToggleGroup 
@@ -118,9 +106,9 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
                                 current={prefVisual} 
                                 onChange={setPrefVisual} 
                                 options={[
-                                    { id: 'avatar', label: '2D/3D・アニメ' }, 
-                                    { id: 'real', label: '実写・リアル' }, 
-                                    { id: 'any', label: '両方好き' }
+                                    { id: 'avatar', label: 'アニメ・CG' }, 
+                                    { id: 'real', label: '実写' }, 
+                                    { id: 'any', label: '好き' }
                                 ]} 
                             />
                             <ToggleGroup 
@@ -128,9 +116,9 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
                                 current={prefVocal} 
                                 onChange={setPrefVocal} 
                                 options={[
-                                    { id: 'instrumental', label: 'BGM・音のみ' }, 
+                                    { id: 'instrumental', label: '音楽・BGM' }, 
                                     { id: 'vocal', label: 'トーク・歌' }, 
-                                    { id: 'any', label: '指定なし' }
+                                    { id: 'any', label: '普通' }
                                 ]} 
                             />
                         </div>
@@ -148,8 +136,8 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
                                 onChange={setPrefDepth} 
                                 options={[
                                     { id: 'casual', label: '手軽に' }, 
-                                    { id: 'deep', label: 'じっくり' }, 
-                                    { id: 'any', label: '指定なし' }
+                                    { id: 'deep', label: '詳細・解説' }, 
+                                    { id: 'any', label: '普通' }
                                 ]} 
                             />
                              <ToggleGroup 
@@ -159,7 +147,7 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
                                 options={[
                                     { id: 'entertainment', label: 'エンタメ' }, 
                                     { id: 'education', label: '知識・学習' }, 
-                                    { id: 'any', label: '指定なし' }
+                                    { id: 'any', label: '普通' }
                                 ]} 
                             />
                             <ToggleGroup 
@@ -168,19 +156,58 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
                                 onChange={setPrefCommunity} 
                                 options={[
                                     { id: 'solo', label: 'ソロ' }, 
-                                    { id: 'collab', label: 'コラボ・多人数' }, 
-                                    { id: 'any', label: '指定なし' }
+                                    { id: 'collab', label: 'コラボ' }, 
+                                    { id: 'any', label: '普通' }
                                 ]} 
                             />
                          </div>
                     </section>
 
                     <hr className="border-yt-spec-light-20 dark:border-yt-spec-20" />
+                    
+                    {/* Section 3: Search Filters */}
+                     <section>
+                        <h3 className="text-lg font-bold text-black dark:text-white mb-4 flex items-center gap-2">
+                            検索・フィルター設定
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                            <ToggleGroup 
+                                label="動画の長さ（複数選択可）" 
+                                current={preferredDurations} 
+                                onChange={togglePreferredDuration} 
+                                options={[
+                                    { id: 'short', label: '短い (4分未満)' }, 
+                                    { id: 'medium', label: '普通 (4-20分)' }, 
+                                    { id: 'long', label: '長い (20分以上)' }
+                                ]} 
+                            />
+                            <ToggleGroup 
+                                label="新しさ" 
+                                current={preferredFreshness} 
+                                onChange={setPreferredFreshness} 
+                                options={[
+                                    { id: 'new', label: '最新' }, 
+                                    { id: 'popular', label: '人気' }, 
+                                    { id: 'balanced', label: 'バランス' }
+                                ]} 
+                            />
+                            <ToggleGroup 
+                                label="選出モード" 
+                                current={discoveryMode} 
+                                onChange={setDiscoveryMode} 
+                                options={[
+                                    { id: 'subscribed', label: '登録優先' }, 
+                                    { id: 'discovery', label: '新規開拓' }, 
+                                    { id: 'balanced', label: 'バランス' }
+                                ]} 
+                            />
+                        </div>
+                    </section>
 
-                    {/* Section 3: Specific Interests (Tags) */}
+                    {/* Section 4: Specific Interests (Tags) */}
                     <section>
                         <h3 className="text-lg font-bold text-black dark:text-white mb-4 flex items-center gap-2">
-                            キーワード・タグ設定
+                            キーワード設定
                         </h3>
                         
                         <div className="mb-4">
@@ -203,8 +230,8 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                             {/* Genres Input */}
+                        <div className="grid grid-cols-1 gap-6">
+                             {/* Genres Input Only */}
                             <div>
                                 <form onSubmit={handleAddGenre} className="flex gap-2 mb-3">
                                     <input
@@ -227,75 +254,12 @@ const PreferenceModal: React.FC<PreferenceModalProps> = ({ isOpen, onClose }) =>
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Channels Input */}
-                            <div>
-                                <form onSubmit={handleAddChannel} className="flex gap-2 mb-3">
-                                    <input
-                                        type="text"
-                                        value={channelInput}
-                                        onChange={(e) => setChannelInput(e.target.value)}
-                                        placeholder="好きなチャンネル名..."
-                                        className="flex-1 bg-yt-light dark:bg-black border border-transparent focus:border-yt-blue rounded-xl px-4 py-2.5 text-black dark:text-white outline-none text-sm transition-colors"
-                                    />
-                                    <button type="submit" className="bg-yt-black dark:bg-white text-white dark:text-black px-4 py-2.5 rounded-xl text-sm font-bold hover:opacity-80 transition-opacity">追加</button>
-                                </form>
-                                <div className="flex flex-wrap gap-2">
-                                    {preferredChannels.map((channel, idx) => (
-                                        <span key={idx} className="inline-flex items-center bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium shadow-sm">
-                                            {channel}
-                                            <button onClick={() => removePreferredChannel(channel)} className="ml-2 hover:text-black/50">
-                                                <CloseIcon />
-                                            </button>
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <hr className="border-yt-spec-light-20 dark:border-yt-spec-20" />
-                    
-                    {/* Extra Settings */}
-                     <section>
-                        <h3 className="text-sm font-bold text-yt-light-gray mb-4 uppercase tracking-wider">検索フィルター設定</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-                            <ToggleGroup 
-                                label="動画の長さ" 
-                                current={preferredDurations} 
-                                onChange={togglePreferredDuration} 
-                                options={[
-                                    { id: 'short', label: '短い (4分未満)' }, 
-                                    { id: 'medium', label: '普通 (4-20分)' }, 
-                                    { id: 'long', label: '長い (20分以上)' }
-                                ]} 
-                            />
-                            <ToggleGroup 
-                                label="新しさ" 
-                                current={preferredFreshness} 
-                                onChange={setPreferredFreshness} 
-                                options={[
-                                    { id: 'new', label: '最新' }, 
-                                    { id: 'popular', label: '人気順' }, 
-                                    { id: 'balanced', label: 'バランス' }
-                                ]} 
-                            />
-                            <ToggleGroup 
-                                label="選出モード" 
-                                current={discoveryMode} 
-                                onChange={setDiscoveryMode} 
-                                options={[
-                                    { id: 'subscribed', label: '登録Ch優先' }, 
-                                    { id: 'discovery', label: '新規開拓' }, 
-                                    { id: 'balanced', label: 'バランス' }
-                                ]} 
-                            />
                         </div>
                     </section>
 
                     {/* NG Zone */}
                     <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/30">
-                        <h3 className="text-sm font-bold text-red-500 mb-3 uppercase tracking-wider">⛔ NG設定（ブロック・除外）</h3>
+                        <h3 className="text-sm font-bold text-red-500 mb-3 uppercase tracking-wider">NG設定（ブロック・除外）</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <form onSubmit={handleAddNg} className="flex gap-2">
                                 <input

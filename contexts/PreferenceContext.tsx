@@ -10,8 +10,7 @@ interface PreferenceContextType {
   ngKeywords: string[];
   ngChannels: string[];
   
-  // New 10 Preferences
-  prefMood: string;       // 'relax' | 'energetic' | 'any'
+  // Preferences
   prefDepth: string;      // 'casual' | 'deep' | 'any'
   prefVocal: string;      // 'instrumental' | 'vocal' | 'any'
   prefEra: string;        // 'retro' | 'modern' | 'any'
@@ -38,8 +37,7 @@ interface PreferenceContextType {
   removeNgChannel: (channelId: string) => void;
   isNgChannel: (channelId: string) => boolean;
 
-  // Setters for new preferences
-  setPrefMood: (val: string) => void;
+  // Setters
   setPrefDepth: (val: string) => void;
   setPrefVocal: (val: string) => void;
   setPrefEra: (val: string) => void;
@@ -76,8 +74,7 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
     try { return JSON.parse(window.localStorage.getItem('ngChannels') || '[]'); } catch { return []; }
   });
 
-  // New 10 Preferences
-  const [prefMood, setPrefMood] = useState(() => window.localStorage.getItem('prefMood') || 'any');
+  // Preferences
   const [prefDepth, setPrefDepth] = useState(() => window.localStorage.getItem('prefDepth') || 'any');
   const [prefVocal, setPrefVocal] = useState(() => window.localStorage.getItem('prefVocal') || 'any');
   const [prefEra, setPrefEra] = useState(() => window.localStorage.getItem('prefEra') || 'any');
@@ -97,7 +94,6 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('ngKeywords', JSON.stringify(ngKeywords)); }, [ngKeywords]);
   useEffect(() => { localStorage.setItem('ngChannels', JSON.stringify(ngChannels)); }, [ngChannels]);
 
-  useEffect(() => { localStorage.setItem('prefMood', prefMood); }, [prefMood]);
   useEffect(() => { localStorage.setItem('prefDepth', prefDepth); }, [prefDepth]);
   useEffect(() => { localStorage.setItem('prefVocal', prefVocal); }, [prefVocal]);
   useEffect(() => { localStorage.setItem('prefEra', prefEra); }, [prefEra]);
@@ -124,7 +120,7 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
   const exportUserData = () => {
     const data = {
       timestamp: new Date().toISOString(),
-      version: '1.1',
+      version: '1.2',
       subscriptions: JSON.parse(localStorage.getItem('subscribedChannels') || '[]'),
       history: JSON.parse(localStorage.getItem('videoHistory') || '[]'),
       playlists: JSON.parse(localStorage.getItem('playlists') || '[]'),
@@ -136,8 +132,8 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
         discoveryMode: discoveryMode,
         ngKeywords: ngKeywords,
         ngChannels: ngChannels,
-        // New 10
-        prefMood, prefDepth, prefVocal, prefEra, prefRegion,
+        // New preferences
+        prefDepth, prefVocal, prefEra, prefRegion,
         prefLive, prefInfoEnt, prefPacing, prefVisual, prefCommunity
       }
     };
@@ -175,8 +171,6 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
             localStorage.setItem('ngKeywords', JSON.stringify(p.ngKeywords || []));
             localStorage.setItem('ngChannels', JSON.stringify(p.ngChannels || []));
 
-            // New 10
-            if (p.prefMood) localStorage.setItem('prefMood', p.prefMood);
             if (p.prefDepth) localStorage.setItem('prefDepth', p.prefDepth);
             if (p.prefVocal) localStorage.setItem('prefVocal', p.prefVocal);
             if (p.prefEra) localStorage.setItem('prefEra', p.prefEra);
@@ -204,10 +198,10 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
   return (
     <PreferenceContext.Provider value={{
       preferredGenres, preferredChannels, preferredDurations, preferredFreshness, discoveryMode, ngKeywords, ngChannels,
-      prefMood, prefDepth, prefVocal, prefEra, prefRegion, prefLive, prefInfoEnt, prefPacing, prefVisual, prefCommunity,
+      prefDepth, prefVocal, prefEra, prefRegion, prefLive, prefInfoEnt, prefPacing, prefVisual, prefCommunity,
       addPreferredGenre, removePreferredGenre, addPreferredChannel, removePreferredChannel, togglePreferredDuration, setPreferredFreshness, setDiscoveryMode, 
       addNgKeyword, removeNgKeyword, addNgChannel, removeNgChannel, isNgChannel,
-      setPrefMood, setPrefDepth, setPrefVocal, setPrefEra, setPrefRegion, setPrefLive, setPrefInfoEnt, setPrefPacing, setPrefVisual, setPrefCommunity,
+      setPrefDepth, setPrefVocal, setPrefEra, setPrefRegion, setPrefLive, setPrefInfoEnt, setPrefPacing, setPrefVisual, setPrefCommunity,
       exportUserData, importUserData
     }}>
       {children}
