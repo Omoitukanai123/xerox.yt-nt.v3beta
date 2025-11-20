@@ -262,16 +262,20 @@ const VideoPlayerPage: React.FC = () => {
                                 </Link>
                                 <div className="flex flex-col ml-3 mr-4 min-w-0 relative" ref={collaboratorMenuRef}>
                                     {hasCollaborators ? (
-                                        <div 
-                                            className="flex items-center cursor-pointer hover:opacity-80 group"
-                                            onClick={() => setIsCollaboratorMenuOpen(!isCollaboratorMenuOpen)}
-                                        >
-                                            <span className="font-bold text-base text-black dark:text-white truncate block max-w-[200px]">
-                                                {mainChannel.name} 他
-                                            </span>
-                                            <ChevronRightIcon />
-                                            
-                                            {/* Collaborators Dropdown */}
+                                        <>
+                                            <div 
+                                                className="flex items-center cursor-pointer hover:opacity-80 group select-none"
+                                                onClick={() => setIsCollaboratorMenuOpen(!isCollaboratorMenuOpen)}
+                                            >
+                                                <span className="font-bold text-base text-black dark:text-white truncate block max-w-[200px]">
+                                                    {mainChannel.name} 他
+                                                </span>
+                                                <div className={`transform transition-transform duration-200 ${isCollaboratorMenuOpen ? 'rotate-90' : ''}`}>
+                                                    <ChevronRightIcon />
+                                                </div>
+                                            </div>
+
+                                            {/* Collaborators Dropdown - Moved outside the trigger div to prevent bubbling issues */}
                                             {isCollaboratorMenuOpen && (
                                                 <div className="absolute top-full left-0 mt-2 w-64 bg-yt-white dark:bg-yt-light-black rounded-lg shadow-xl border border-yt-spec-light-20 dark:border-yt-spec-20 z-50 overflow-hidden">
                                                     <div className="px-4 py-2 text-xs font-bold text-yt-light-gray border-b border-yt-spec-light-20 dark:border-yt-spec-20">
@@ -283,6 +287,7 @@ const VideoPlayerPage: React.FC = () => {
                                                                 key={collab.id} 
                                                                 to={`/channel/${collab.id}`}
                                                                 className="flex items-center px-4 py-3 hover:bg-yt-spec-light-10 dark:hover:bg-yt-spec-10"
+                                                                onClick={() => setIsCollaboratorMenuOpen(false)}
                                                             >
                                                                 <img src={collab.avatarUrl} alt={collab.name} className="w-8 h-8 rounded-full mr-3" />
                                                                 <div>
@@ -296,7 +301,7 @@ const VideoPlayerPage: React.FC = () => {
                                                     </div>
                                                 </div>
                                             )}
-                                        </div>
+                                        </>
                                     ) : (
                                         <Link to={`/channel/${mainChannel.id}`} className="font-bold text-base text-black dark:text-white hover:text-opacity-80 truncate block">
                                             {mainChannel.name}

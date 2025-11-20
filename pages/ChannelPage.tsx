@@ -203,7 +203,13 @@ const ChannelPage: React.FC = () => {
 
                 {/* Playlists (Shelves) */}
                 {homeData.playlists
-                    .filter(playlist => playlist.playlistId && playlist.items && playlist.items.length > 0) // Filter out invalid playlists
+                    .filter(playlist => 
+                        playlist.playlistId && 
+                        playlist.items && 
+                        playlist.items.length > 0 &&
+                        !playlist.title.includes('リリース') && 
+                        !playlist.title.includes('Releases')
+                    )
                     .map((playlist, index) => (
                     <div key={`${playlist.playlistId}-${index}`}>
                         <div className="flex items-center justify-between mb-2 md:mb-4">
