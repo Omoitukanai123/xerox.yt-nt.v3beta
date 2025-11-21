@@ -48,12 +48,12 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
     // 2. Parallel Data Fetching for Speed
 
     // Source A: Contextual Walk (Related to recent history)
-    // Only fetch related for the very last video to save bandwidth/time
+    // Fetch more related videos to increase candidate pool
     if (watchHistory.length > 0) {
         const lastVideo = watchHistory[0]; // Most recent
         candidatePromises.push(
             getVideoDetails(lastVideo.id)
-                .then(details => (details.relatedVideos || []).slice(0, 20))
+                .then(details => (details.relatedVideos || []).slice(0, 40)) // Increased from 20
                 .catch(() => [])
         );
     }
@@ -90,19 +90,20 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
 
     // Source C: Subscriptions (Recent uploads)
     if (subscribedChannels.length > 0) {
-        // Pick 3 random subscribed channels to check for new content
-        const randomSubs = shuffleArray(subscribedChannels).slice(0, 3);
+        // Increase fetch: Pick 5 random subscribed channels
+        const randomSubs = shuffleArray(subscribedChannels).slice(0, 5);
         randomSubs.forEach(sub => {
             candidatePromises.push(
                 getChannelVideos(sub.id)
-                    .then(res => res.videos.slice(0, 5)) // Only latest 5
+                    .then(res => res.videos.slice(0, 10)) // Fetch 10 from each
                     .catch(() => [])
             );
         });
     }
 
-    // Source D: Fallback / Trend Filler
-    // Use standard trending/home feed to ensure we always have content
+    // Source D: Fallback / Trend Filler / Bulk Content
+    // Always fetch general recommendations (which now return 150+ videos from API)
+    // This ensures we have volume even if other searches fail or are small
     candidatePromises.push(
         getRecommendedVideos()
             .then(res => res.videos)
@@ -132,8 +133,8 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         watchHistory: sources.watchHistory,
     });
     
-    // Return top results
-    return rankedVideos;
+    // Return results (up to 150 to meet user demand)
+    return rankedVideos.slice(0, 150);
 };
 
 
@@ -146,7 +147,7 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
 export const getLegacyRecommendations = async (): Promise<Video[]> => {
     try {
         const { videos } = await getRecommendedVideos();
-        return videos;
+        return shuffleArray(videos); // Legacy also gets a shuffle for variety
     } catch (error) {
         console.error("Failed to fetch legacy recommendations:", error);
         return [];

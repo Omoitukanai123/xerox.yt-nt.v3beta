@@ -177,13 +177,18 @@ export const rankVideos = (
     if (daysAgo <= 3) freshnessScore = 5;
     else freshnessScore = Math.max(0, 4 - Math.log2(daysAgo)); 
 
-    // 4. Diversity/Discovery Weights (Heuristic constants)
-    // Relevance is king, but freshness and popularity validate quality.
-    const finalScore = (
+    // 4. Random Jitter (Randomness)
+    // Adds up to 40% random boost to the score to ensure variety
+    const randomJitter = Math.random() * 0.4; 
+
+    // 5. Diversity/Discovery Weights (Heuristic constants)
+    const baseScore = (
         (relevanceScore * 2.0) + 
         (popularityScore * 0.5) + 
         (freshnessScore * 1.2)
     ) * historyPenalty;
+
+    const finalScore = baseScore * (1 + randomJitter);
     
     scoredVideos.push({ video, score: finalScore });
   }
@@ -191,11 +196,11 @@ export const rankVideos = (
   // Sort by score descending
   scoredVideos.sort((a, b) => b.score - a.score);
 
-  // 5. Diversity Filter (Post-Ranking)
+  // 6. Diversity Filter (Post-Ranking)
   // Prevent one channel from dominating the feed
   const finalRankedList: Video[] = [];
   const channelCount = new Map<string, number>();
-  const MAX_FROM_SAME_CHANNEL = 2; // Strict limit for homepage variety
+  const MAX_FROM_SAME_CHANNEL = 3; // Slightly increased for larger feeds
 
   for (const { video } of scoredVideos) {
     const count = channelCount.get(video.channelId) || 0;
