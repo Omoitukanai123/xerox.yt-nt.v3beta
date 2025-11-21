@@ -51,10 +51,6 @@ const mixFeeds = (discoveryList: Video[], comfortList: Video[], discoveryRatio: 
     let idxA = 0;
     let idxB = 0;
     
-    // Calculate cycle. For 65% (approx 2/3), we want pattern like: A, A, B, A, A, B...
-    // If ratio is 0.65, out of 100 items, 65 are A, 35 are B. 
-    // Simplified logic: Probabilistic insertion or bucket filling.
-    
     const totalLength = discoveryList.length + comfortList.length;
     
     for (let i = 0; i < totalLength; i++) {
@@ -137,7 +133,6 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         const keywordChunks = chunkArray(topKeywords, 3); // 3 words per query
         
         keywordChunks.forEach(chunk => {
-            // Add a random generic term occasionally to broaden discovery
             const query = chunk.join(' OR ');
             discoveryPromises.push(
                 searchVideos(query, String(page)) // Use pagination to get "new" results on scroll
@@ -147,22 +142,18 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         });
     }
 
-    // A-2. "Trending/Fresh": Global trends or specific high-volume topics
-    // We simulate trending by searching broad, high-volume terms
-    if (page === 1) {
+    // A-2. "Trending/Fresh": 
+    // Only use generic trending if the user has NO profile data.
+    // Otherwise, generic trending pulls in unrelated/foreign content.
+    if (topKeywords.length === 0 && page === 1) {
         discoveryPromises.push(
-            searchVideos("trending OR viral OR new", '1')
+            searchVideos("trending Japan", '1') // Restrict to Japan specifically
                 .then(res => res.videos)
                 .catch(() => [])
         );
-    } else {
-        // On deeper pages, dig deeper into related concepts
-        discoveryPromises.push(
-             getRecommendedVideos()
-                .then(res => res.videos)
-                .catch(() => [])
-        );
-    }
+    } 
+    // If user has keywords, we ONLY rely on keyword-based discovery to ensure relevance.
+    // We removed the generic "trending OR viral" query that caused foreign video influx.
 
     // ============================================================
     // POOL B: COMFORT & HISTORY (Target: 35%)
@@ -194,8 +185,8 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         });
     }
     
-    // Fallback for new users
-    if (watchHistory.length === 0 && subscribedChannels.length === 0 && topKeywords.length === 0) {
+    // Fallback for completely new users without even trending results
+    if (watchHistory.length === 0 && subscribedChannels.length === 0 && topKeywords.length === 0 && discoveryPromises.length === 0) {
         discoveryPromises.push(getRecommendedVideos().then(res => res.videos));
     }
 
@@ -218,12 +209,12 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
     const filteredComfort = uniqueComfort.filter(v => !discoveryIds.has(v.id));
 
     // Rank using XRAI (Neural Simulation)
-    // We score Discovery videos aggressively on "Freshness" and "Relevance"
+    // We score Discovery videos aggressively on "Relevance" (now dominant) + "Freshness"
     const rankedDiscovery = rankVideos(uniqueDiscovery, userProfile, {
         ngKeywords: sources.ngKeywords,
         ngChannels: sources.ngChannels,
         watchHistory: sources.watchHistory,
-        mode: 'discovery' // Tells ranker to favor fresh/new
+        mode: 'discovery'
     });
 
     // We score Comfort videos on "Relevance" and "Channel Affinity"

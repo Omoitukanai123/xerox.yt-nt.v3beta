@@ -63,6 +63,14 @@ const extractKeywords = (text: string): string[] => {
   return Array.from(new Set(keywords));
 };
 
+// --- Language Detection ---
+
+// Simple heuristic: Checks for Hiragana, Katakana, or common CJK ranges.
+const containsJapanese = (text: string): boolean => {
+    // Hiragana: 3040-309F, Katakana: 30A0-30FF, CJK Unified Ideographs: 4E00-9FFF
+    return /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(text);
+};
+
 // --- User Profile Builder (Vector Construction) ---
 
 export const buildUserProfile = (sources: UserSources): UserProfile => {
@@ -148,23 +156,29 @@ export const rankVideos = (
     if (context.ngKeywords.some(ng => fullText.includes(ng.toLowerCase()))) continue;
     if (context.ngChannels.includes(video.channelId)) continue;
     
-    // 2. History Penalty (Demote watched videos)
-    // If discovery mode, penalize heavily. If comfort mode, allow re-watch slightly.
+    // 2. Language Filtering (Strict Japanese Preference)
+    // If the video doesn't contain Japanese characters, penalize heavily
+    // unless the user has explicitly searched for English terms (not implemented here for simplicity, just hard penalize)
+    const isJapanese = containsJapanese(fullText);
+    let languagePenalty = 1.0;
+    if (!isJapanese) {
+        languagePenalty = 0.1; // 90% score reduction for non-Japanese content
+    }
+
+    // 3. History Penalty (Demote watched videos)
     let historyPenalty = 1.0;
     if (seenIds.has(video.id)) {
         historyPenalty = context.mode === 'discovery' ? 0.01 : 0.2; 
     }
 
-    // 3. Semantic Relevance (Vector Dot Product Simulation)
+    // 4. Semantic Relevance (Vector Dot Product Simulation)
     let relevanceScore = 0;
     const videoKeywords = extractKeywords(fullText);
     
     // Calculate coverage: How many of the video's words match user interests?
-    let matchCount = 0;
     videoKeywords.forEach(kw => {
       if (userProfile.keywords.has(kw)) {
         relevanceScore += userProfile.keywords.get(kw)!;
-        matchCount++;
       }
     });
 
@@ -173,13 +187,12 @@ export const rankVideos = (
         relevanceScore = relevanceScore / Math.sqrt(videoKeywords.length);
     }
 
-    // 4. Popularity (Logarithmic)
+    // 5. Popularity (Logarithmic)
     const views = parseViews(video.views);
     const popularityScore = Math.log10(views + 1); // 0 to ~9
 
-    // 5. Freshness (Exponential Decay)
+    // 6. Freshness (Exponential Decay)
     const daysAgo = parseUploadedAt(video.uploadedAt);
-    // Boost extremely new videos (0-2 days) significantly
     let freshnessScore = 0;
     if (daysAgo <= 1) freshnessScore = 15;
     else if (daysAgo <= 3) freshnessScore = 10;
@@ -191,26 +204,32 @@ export const rankVideos = (
     let finalScore = 0;
 
     if (context.mode === 'discovery') {
-        // Discovery Mode: Prioritize Freshness and Popularity, less on strict keyword match
-        // Allows serendipity (finding things you didn't know you liked)
+        // Discovery Mode: RELEVANCE IS KEY. Freshness helps, but only if relevant.
+        // Previous issue: Freshness weight was too high (3.0) vs Relevance (2.0), allowing irrelevant fresh videos.
+        // New weights: Relevance dominant (5.0).
         finalScore = (
-            (relevanceScore * 2.0) + 
-            (popularityScore * 1.5) + 
-            (freshnessScore * 3.0) // Huge boost for new content
+            (relevanceScore * 5.0) + 
+            (popularityScore * 1.0) + 
+            (freshnessScore * 2.0) 
         );
     } else {
-        // Comfort Mode: Prioritize Relevance (Keyword Match)
+        // Comfort Mode: Prioritize Relevance heavily.
         finalScore = (
-            (relevanceScore * 4.0) + 
+            (relevanceScore * 5.0) + 
             (popularityScore * 0.5) + 
             (freshnessScore * 0.5)
         );
     }
+    
+    // Apply penalties and boosts
+    // If relevance is zero (completely unrelated), crush the score regardless of freshness.
+    if (relevanceScore === 0) {
+        finalScore = finalScore * 0.1;
+    }
 
-    // 6. Deep Learning "Dropout" / Jitter
-    // Adds slight randomness to prevent the feed from becoming stale/repetitive
-    const jitter = (Math.random() - 0.5) * 0.15; // +/- 7.5%
-    finalScore = finalScore * (1 + jitter) * historyPenalty;
+    // 7. Jitter
+    const jitter = (Math.random() - 0.5) * 0.1; // +/- 5%
+    finalScore = finalScore * (1 + jitter) * historyPenalty * languagePenalty;
 
     scoredVideos.push({ video, score: finalScore });
   }
@@ -218,8 +237,7 @@ export const rankVideos = (
   // Sort descending
   scoredVideos.sort((a, b) => b.score - a.score);
 
-  // 7. Diversity Filter (Clustering check)
-  // Don't show too many videos from the same channel
+  // 8. Diversity Filter (Clustering check)
   const finalRankedList: Video[] = [];
   const channelCount = new Map<string, number>();
   const MAX_PER_CHANNEL = context.mode === 'discovery' ? 2 : 4; 
