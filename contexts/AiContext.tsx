@@ -85,16 +85,16 @@ export const AiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     
     // Prompt engineering for "YouTube-like" discovery (New Channels, Adjacent Genres)
     const prompt = `
-    You are a YouTube recommendation algorithm used for CONTENT DISCOVERY.
-    User's core interests: [${interests.join(', ')}].
-    Recently watched: ["${recentTitles}"].
+    You are a YouTube recommendation AI.
+    User's watch history: ["${recentTitles}"].
+    Core interests: [${interests.join(', ')}].
 
-    Task: Generate 5 specific YouTube search queries to help the user discover NEW channels and RELATED genres they haven't seen yet.
-    Rules:
-    1. Focus on ADJACENT niches (e.g., if "Minecraft", suggest "Terraria" or "Indie Sandbox").
-    2. Do NOT suggest what they already watch. Suggest "Fresh" or "Rising" topics.
-    3. Include terms like "Video Essay", "Review", "Documentary", or specific genres.
-    4. Output ONLY the 5 queries, one per line. No numbering.
+    Task:
+    1. Extract important keywords from history.
+    2. Think of "Adjacent" or "Similar" topics that are interesting but not exactly the same (Discovery).
+    3. Generate 5 search queries using the "OR" operator to combine related terms for broader discovery (e.g., "Indie Games OR Retro RPG", "Lo-Fi OR Jazz Study").
+
+    Output ONLY the 5 queries, one per line. No numbering.
     `;
 
     try {

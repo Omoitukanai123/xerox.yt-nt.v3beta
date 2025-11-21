@@ -8,6 +8,7 @@ import { useHistory } from '../contexts/HistoryContext';
 import { usePreference } from '../contexts/PreferenceContext';
 import { useAi } from '../contexts/AiContext';
 import { getXraiRecommendations, getLegacyRecommendations } from '../utils/recommendation';
+import { buildUserProfile, inferTopInterests } from '../utils/xrai';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import type { Video } from '../types';
 import { SearchIcon, SaveIcon, DownloadIcon } from '../components/icons/Icons';
@@ -91,16 +92,49 @@ const HomePage: React.FC = () => {
             if (discoveryVideoCache.current.length > 0) {
                 aiVideos = discoveryVideoCache.current;
             } else {
-                const aiQueries = await getAiRecommendations();
-                if (aiQueries.length === 0) return;
+                let queries: string[] = [];
 
-                // Pick one query to mix in
-                const query = aiQueries[Math.floor(Math.random() * aiQueries.length)];
-                const searchRes = await searchVideos(query, '1');
-                aiVideos = searchRes.videos.slice(0, 6).map(v => ({...v, isAiRecommended: true}));
-                
-                // Cache results
-                discoveryVideoCache.current = aiVideos;
+                if (isLoaded) {
+                    // AI Strategy: Generate queries based on user profile
+                    queries = await getAiRecommendations();
+                } else {
+                    // Fallback Strategy: Client-side Keyphrase Extraction
+                    // Extract important keywords from history and create OR search queries
+                    const profile = buildUserProfile({
+                        watchHistory,
+                        searchHistory: [],
+                        subscribedChannels: []
+                    });
+                    
+                    const interests = inferTopInterests(profile, 6);
+                    if (interests.length > 0) {
+                        // Create combinations of OR queries for variety
+                        // e.g. "Interest1 OR Interest2"
+                        const q1 = interests.slice(0, 3).join(' OR ');
+                        const q2 = interests.slice(3, 6).join(' OR ');
+                        queries = [q1, q2].filter(q => q);
+                    } else if (watchHistory.length > 0) {
+                        // Simple fallback if no semantic keywords found
+                        queries = [`${watchHistory[0].title} OR ${watchHistory[0].channelName}`];
+                    }
+                }
+
+                if (queries.length > 0) {
+                    // Pick one query randomly to mix in
+                    const query = queries[Math.floor(Math.random() * queries.length)];
+                    
+                    // Search using the query (OR search is handled by YouTube API if query contains "OR")
+                    const searchRes = await searchVideos(query, '1');
+                    
+                    // Tag videos as AI recommended
+                    aiVideos = searchRes.videos.slice(0, 10).map(v => ({...v, isAiRecommended: true}));
+                    
+                    // Shuffle for randomness
+                    aiVideos = aiVideos.sort(() => Math.random() - 0.5);
+                    
+                    // Cache results
+                    discoveryVideoCache.current = aiVideos;
+                }
             }
 
             if (aiVideos.length > 0) {
@@ -109,8 +143,8 @@ const HomePage: React.FC = () => {
                     if (currentFeed.some(v => v.isAiRecommended)) return currentFeed;
 
                     const newFeed = [...currentFeed];
-                    // Insert 1 AI video roughly every 5-6 items
-                    aiVideos.forEach((v, i) => {
+                    // Insert 1 AI video roughly every 5 items (approx 20% mix)
+                    aiVideos.slice(0, Math.ceil(newFeed.length / 5)).forEach((v, i) => {
                         const pos = 4 + (i * 5); 
                         if (pos < newFeed.length) {
                             newFeed.splice(pos, 0, v);
@@ -134,14 +168,14 @@ const HomePage: React.FC = () => {
         } catch (e) {
             console.warn("AI augmentation background task failed", e);
         }
-    }, [getAiRecommendations, aiMode, feed, discoveryVideoCache]);
+    }, [getAiRecommendations, aiMode, feed, discoveryVideoCache, isLoaded, watchHistory]);
 
-    // Trigger AI Augmentation when engine becomes ready
+    // Trigger AI Augmentation (or Fallback) when feed is ready
     useEffect(() => {
-        if (isLoaded && !isNewUser && !aiMode && feed.length > 0) {
+        if (!isNewUser && !aiMode && feed.length > 0) {
             augmentFeedWithAi();
         }
-    }, [isLoaded, isNewUser, aiMode, feed.length, augmentFeedWithAi]);
+    }, [isNewUser, aiMode, feed.length, augmentFeedWithAi]);
 
 
     const loadRecommendations = useCallback(async (pageNum: number) => {
@@ -151,6 +185,7 @@ const HomePage: React.FC = () => {
         if (isInitial) {
             setIsLoading(true);
             isAiAugmentedRef.current = false; // Reset AI augmentation flag on refresh
+            discoveryVideoCache.current = []; // Clear cache on hard refresh
         } else {
             setIsFetchingMore(true);
         }
