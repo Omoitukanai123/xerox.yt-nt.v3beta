@@ -1,6 +1,6 @@
 
 import type { Video, Channel } from '../types';
-import { searchVideos, getExternalRelatedVideos } from './api';
+import { searchVideos } from './api';
 import { extractKeywords } from './xrai';
 
 // --- Types ---
@@ -36,8 +36,8 @@ const cleanTitleForSearch = (title: string): string => {
  * 
  * Logic:
  * 1. Pick 10 random videos from watch history as "seeds".
- * 2. Fetch related content for ALL 10 seeds using external API (siawaseok.duckdns.org).
- * 3. Fallback to search if history is empty.
+ * 2. Search for related content for ALL 10 seeds.
+ * 3. Strict Keyword Matching: Videos must match history keywords to be relevant.
  * 4. Shuffle.
  */
 export const getXraiRecommendations = async (sources: RecommendationSource): Promise<Video[]> => {
@@ -48,46 +48,32 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         ngChannels
     } = sources;
 
-    let candidates: Video[] = [];
+    // --- 1. SEED SELECTION ---
+    let seeds: string[] = [];
     
-    // Flag to skip strict keyword filtering if we used the direct related API
-    let isDirectRecommendation = false;
-
     if (watchHistory.length > 0) {
-        // Pick 10 random videos from history as seeds
+        // Pick 10 random videos from history
         const historySample = shuffleArray(watchHistory).slice(0, 10);
-        
-        // Fetch related videos for each seed using the new external API
-        // This aligns with the requirement: "randomly select 10 videos and fetch recommendations from the link"
-        const relatedPromises = historySample.map(v => 
-            getExternalRelatedVideos(v.id).catch(() => [])
-        );
-        
-        const nestedResults = await Promise.all(relatedPromises);
-        candidates = nestedResults.flat();
-        isDirectRecommendation = true;
+        seeds = historySample.map(v => `${cleanTitleForSearch(v.title)} related`);
     } else if (subscribedChannels.length > 0) {
         // Fallback to subscriptions if no history
         const subSample = shuffleArray(subscribedChannels).slice(0, 5);
-        const seeds = subSample.map(c => `${c.name} videos`);
-        
-        const searchPromises = seeds.map(query => 
-            searchVideos(query, '1').then(res => res.videos).catch(() => [])
-        );
-        
-        const nestedResults = await Promise.all(searchPromises);
-        candidates = nestedResults.flat();
+        seeds = subSample.map(c => `${c.name} videos`);
     } else {
         // Cold start
-        const seeds = ["Trending Japan", "Popular Music", "Gaming", "Cooking", "Vlog"];
-        const searchPromises = seeds.map(query => 
-            searchVideos(query, '1').then(res => res.videos).catch(() => [])
-        );
-        const nestedResults = await Promise.all(searchPromises);
-        candidates = nestedResults.flat();
+        seeds = ["Trending Japan", "Popular Music", "Gaming", "Cooking", "Vlog"];
     }
 
-    // Deduplicate by ID
+    // --- 2. CANDIDATE GENERATION (High Volume) ---
+    // Fetch results for ALL seeds concurrently
+    const searchPromises = seeds.map(query => 
+        searchVideos(query, '1').then(res => res.videos).catch(() => [])
+    );
+    
+    const nestedResults = await Promise.all(searchPromises);
+    let candidates = nestedResults.flat();
+    
+    // Deduplicate
     const seenIds = new Set<string>();
     candidates = candidates.filter(v => {
         if (seenIds.has(v.id)) return false;
@@ -95,12 +81,11 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         return true;
     });
 
-    // --- STRICT FILTERING (Relevance Check) ---
-    // Only apply strict keyword filtering if we used the SEARCH method (fallback).
-    // If we used the direct related API, we assume the API returns relevant content and skip strict keyword matching
-    // to avoid filtering out good but poorly titled recommendations.
-    if (!isDirectRecommendation && watchHistory.length > 0) {
+    // --- 3. STRICT FILTERING (Relevance Check) ---
+    // If we have history, only show videos that match keywords from history.
+    if (watchHistory.length > 0) {
         // Build an allowlist of keywords from user history (Title + Channel Name)
+        // We take a large sample of recent history to build this profile
         const historyKeywords = new Set<string>();
         watchHistory.slice(0, 50).forEach(v => {
             extractKeywords(v.title).forEach(k => historyKeywords.add(k));
@@ -123,7 +108,7 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         });
     }
 
-    // --- NG FILTERING (Safety) ---
+    // --- 4. NG FILTERING (Safety) ---
     candidates = candidates.filter(v => {
         const fullText = `${v.title} ${v.channelName}`.toLowerCase();
         if (ngKeywords.some(ng => fullText.includes(ng.toLowerCase()))) return false;
@@ -131,6 +116,6 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         return true;
     });
 
-    // --- SHUFFLING ---
+    // --- 5. SHUFFLING ---
     return shuffleArray(candidates);
 };
