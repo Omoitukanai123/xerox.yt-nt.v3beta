@@ -10,6 +10,7 @@ export interface UserProfile {
 
 interface UserSources {
   watchHistory: Video[];
+  shortsHistory?: Video[];
   searchHistory: string[];
   subscribedChannels: Channel[];
 }
@@ -77,6 +78,15 @@ export const buildUserProfile = (sources: UserSources): UserProfile => {
     addKeywords(video.title, recencyWeight);
     addKeywords(video.channelName, recencyWeight * 1.5);
   });
+
+  // Shorts history (Implicit feedback - slightly lower weight than long-form)
+  if (sources.shortsHistory) {
+    sources.shortsHistory.slice(0, 30).forEach((video, index) => {
+        const recencyWeight = 3.5 * Math.exp(-index / 15);
+        addKeywords(video.title, recencyWeight);
+        addKeywords(video.channelName, recencyWeight * 1.5);
+    });
+  }
 
   // Subscriptions (Explicit feedback)
   sources.subscribedChannels.forEach(channel => {

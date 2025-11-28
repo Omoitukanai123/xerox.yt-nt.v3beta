@@ -8,28 +8,9 @@ import { useHistory } from '../contexts/HistoryContext';
 import { usePreference } from '../contexts/PreferenceContext';
 import { getXraiRecommendations } from '../utils/recommendation';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { parseDuration } from '../utils/api';
 import type { Video } from '../types';
 import { SearchIcon, SaveIcon, DownloadIcon } from '../components/icons/Icons';
-
-// Helper to parse duration string to seconds
-const parseDuration = (iso: string, text: string): number => {
-    if (iso) {
-        const matches = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-        if (matches) {
-            const h = parseInt(matches[1] || '0', 10);
-            const m = parseInt(matches[2] || '0', 10);
-            const s = parseInt(matches[3] || '0', 10);
-            return h * 3600 + m * 60 + s;
-        }
-    }
-    if (text) {
-         const parts = text.split(':').map(p => parseInt(p, 10));
-         if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-         if (parts.length === 2) return parts[0] * 60 + parts[1];
-         if (parts.length === 1) return parts[0];
-    }
-    return 0;
-}
 
 const MAX_FEED_VIDEOS = 800; 
 
@@ -50,8 +31,7 @@ const HomePage: React.FC = () => {
 
     const { subscribedChannels } = useSubscription();
     const { searchHistory } = useSearchHistory();
-    const { history: watchHistory } = useHistory();
-    // FIX: Destructure 'hiddenVideos' instead of 'hiddenVideoIds' to match PreferenceContextType.
+    const { history: watchHistory, shortsHistory } = useHistory();
     const { ngKeywords, ngChannels, hiddenVideos, negativeKeywords, exportUserData, importUserData } = usePreference();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,8 +65,7 @@ const HomePage: React.FC = () => {
         
         try {
             const rawVideos = await getXraiRecommendations({
-                searchHistory, watchHistory, subscribedChannels,
-                // FIX: Pass 'hiddenVideos' to getXraiRecommendations as expected by RecommendationSource type.
+                searchHistory, watchHistory, shortsHistory, subscribedChannels,
                 ngKeywords, ngChannels, hiddenVideos, negativeKeywords,
                 page: pageNum
             });
@@ -139,7 +118,7 @@ const HomePage: React.FC = () => {
             setIsLoading(false);
             setIsFetchingMore(false);
         }
-    }, [subscribedChannels, searchHistory, watchHistory, ngKeywords, ngChannels, hiddenVideos, negativeKeywords]);
+    }, [subscribedChannels, searchHistory, watchHistory, shortsHistory, ngKeywords, ngChannels, hiddenVideos, negativeKeywords]);
 
     useEffect(() => {
         setPage(1);

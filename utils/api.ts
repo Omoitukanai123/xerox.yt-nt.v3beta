@@ -1,4 +1,3 @@
-
 import type { Video, VideoDetails, Channel, ChannelDetails, ApiPlaylist, Comment, PlaylistDetails, SearchResults, HomeVideo, HomePlaylist, ChannelHomeData } from '../types';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ja';
@@ -10,7 +9,7 @@ dayjs.locale('ja');
 
 // --- HELPER FUNCTIONS ---
 
-const formatJapaneseNumber = (raw: number | string): string => {
+export const formatJapaneseNumber = (raw: number | string): string => {
   const num = typeof raw === 'string' ? parseInt(raw.replace(/,/g, ''), 10) : raw;
   if (isNaN(num)) return '0';
   if (num >= 100000000) return `${(num / 100000000).toFixed(1).replace('.0', '')}億`;
@@ -18,7 +17,7 @@ const formatJapaneseNumber = (raw: number | string): string => {
   return num.toLocaleString();
 };
 
-const formatJapaneseDate = (dateText: string): string => {
+export const formatJapaneseDate = (dateText: string): string => {
   if (!dateText) return '';
   if (!dateText.includes('ago')) {
     return dateText;
@@ -32,7 +31,7 @@ const formatJapaneseDate = (dateText: string): string => {
   return dateText;
 };
 
-const formatDuration = (totalSeconds: number): string => {
+export const formatDuration = (totalSeconds: number): string => {
   if (isNaN(totalSeconds) || totalSeconds < 0) return "0:00";
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -40,6 +39,25 @@ const formatDuration = (totalSeconds: number): string => {
   if (hours > 0) return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
+
+export const parseDuration = (iso: string, text: string): number => {
+    if (iso) {
+        const matches = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+        if (matches) {
+            const h = parseInt(matches[1] || '0', 10);
+            const m = parseInt(matches[2] || '0', 10);
+            const s = parseInt(matches[3] || '0', 10);
+            return h * 3600 + m * 60 + s;
+        }
+    }
+    if (text) {
+         const parts = text.split(':').map(p => parseInt(p, 10));
+         if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+         if (parts.length === 2) return parts[0] * 60 + parts[1];
+         if (parts.length === 1) return parts[0];
+    }
+    return 0;
+}
 
 // --- API FETCHER & PLAYER CONFIG ---
 

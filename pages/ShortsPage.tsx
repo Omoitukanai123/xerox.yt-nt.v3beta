@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ShortsPlayer from '../components/ShortsPlayer';
-import { getPlayerConfig, getComments } from '../utils/api';
+import { getPlayerConfig, getComments, parseDuration } from '../utils/api';
 import { getXraiShorts } from '../utils/recommendation';
 import type { Video, Comment } from '../types';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -38,7 +38,7 @@ const ShortsPage: React.FC = () => {
 
     const { subscribedChannels } = useSubscription();
     const { searchHistory } = useSearchHistory();
-    const { history: watchHistory } = useHistory();
+    const { history: watchHistory, shortsHistory, addShortToHistory } = useHistory();
     const { ngKeywords, ngChannels, hiddenVideos, negativeKeywords } = usePreference();
     
     // Prevent double fetch in strict mode
@@ -62,6 +62,7 @@ const ShortsPage: React.FC = () => {
             const videosPromise = getXraiShorts({
                 searchHistory,
                 watchHistory,
+                shortsHistory, // Pass shorts history to XRAI
                 subscribedChannels,
                 ngKeywords,
                 ngChannels,
@@ -89,7 +90,7 @@ const ShortsPage: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [searchHistory, watchHistory, subscribedChannels, ngKeywords, ngChannels, hiddenVideos, negativeKeywords]);
+    }, [searchHistory, watchHistory, shortsHistory, subscribedChannels, ngKeywords, ngChannels, hiddenVideos, negativeKeywords]);
 
     useEffect(() => {
         loadShorts();
@@ -100,6 +101,29 @@ const ShortsPage: React.FC = () => {
         setShowComments(false);
         setComments([]);
     }, [currentIndex]);
+
+    // History & Timer Logic
+    useEffect(() => {
+        const video = videos[currentIndex];
+        if (!video) return;
+
+        // Parse duration in seconds
+        const durationSec = parseDuration(video.isoDuration, video.duration);
+        
+        // If we can't parse duration, we can't reliably calculate 50%.
+        // Fallback: assume typical short is ~30-60s, set a static threshold like 15s? 
+        // For now, only track if we know duration.
+        if (durationSec === 0) return;
+
+        const thresholdMs = (durationSec * 1000) / 2;
+
+        const timer = setTimeout(() => {
+            // Save to shorts history
+            addShortToHistory(video);
+        }, thresholdMs);
+
+        return () => clearTimeout(timer);
+    }, [currentIndex, videos, addShortToHistory]);
 
     const handlePrev = () => {
         if (currentIndex > 0) {
@@ -161,12 +185,10 @@ const ShortsPage: React.FC = () => {
 
     const currentVideo = videos[currentIndex];
 
-    // Build playlist params to encourage auto-play/continuous play logic in the player.
-    // We pass the subsequent video IDs. This allows the YouTube player to internally queue the next video,
-    // which helps with iOS autoplay policies (interpreting it as a playlist interaction).
-    // Also explicitly force autoplay=1 so button navigation starts the video immediately.
-    const playlistIds = videos.slice(currentIndex + 1, currentIndex + 11).map(v => v.id).join(',');
-    const extendedParams = `${playerParams}&autoplay=1&playlist=${playlistIds}`;
+    // Manual control only:
+    // Remove 'playlist' param so it doesn't auto-advance.
+    // 'autoplay=1' ensures the video starts when loaded/switched via buttons.
+    const extendedParams = `${playerParams}&autoplay=1`;
 
     return (
         // Added pt-8 to prevent overlap with header, and theme-aware background

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { searchVideos } from '../utils/api';
+import { searchVideos, parseDuration } from '../utils/api';
 import type { Video, Channel, ApiPlaylist } from '../types';
 import SearchVideoResultCard from '../components/SearchVideoResultCard';
 import SearchChannelResultCard from '../components/SearchChannelResultCard';
@@ -10,25 +10,6 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { usePreference } from '../contexts/PreferenceContext';
 
 const { useSearchParams } = ReactRouterDOM;
-
-const parseDuration = (iso: string, text: string): number => {
-    if (iso) {
-        const matches = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-        if (matches) {
-            const h = parseInt(matches[1] || '0', 10);
-            const m = parseInt(matches[2] || '0', 10);
-            const s = parseInt(matches[3] || '0', 10);
-            return h * 3600 + m * 60 + s;
-        }
-    }
-    if (text) {
-         const parts = text.split(':').map(p => parseInt(p, 10));
-         if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-         if (parts.length === 2) return parts[0] * 60 + parts[1];
-         if (parts.length === 1) return parts[0];
-    }
-    return 0;
-}
 
 const SearchResultsPage: React.FC = () => {
     const [searchParams] = useSearchParams();

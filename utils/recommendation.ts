@@ -6,6 +6,7 @@ import type { BlockedChannel, HiddenVideo } from '../contexts/PreferenceContext'
 interface RecommendationSource {
     searchHistory: string[];
     watchHistory: Video[];
+    shortsHistory?: Video[];
     subscribedChannels: Channel[];
     ngKeywords: string[];
     ngChannels: BlockedChannel[];
@@ -27,28 +28,10 @@ const cleanTitleForSearch = (title: string): string => {
     return title.replace(/【.*?】|\[.*?\]|\(.*?\)/g, '').trim().split(' ').slice(0, 4).join(' ');
 };
 
-const parseDuration = (iso: string, text: string): number => {
-    if (iso) {
-        const matches = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-        if (matches) {
-            const h = parseInt(matches[1] || '0', 10);
-            const m = parseInt(matches[2] || '0', 10);
-            const s = parseInt(matches[3] || '0', 10);
-            return h * 3600 + m * 60 + s;
-        }
-    }
-    if (text) {
-         const parts = text.split(':').map(p => parseInt(p, 10));
-         if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-         if (parts.length === 2) return parts[0] * 60 + parts[1];
-         if (parts.length === 1) return parts[0];
-    }
-    return 0;
-}
-
 export const getXraiRecommendations = async (sources: RecommendationSource): Promise<Video[]> => {
     const { 
         watchHistory, 
+        shortsHistory,
         subscribedChannels,
         ngKeywords,
         ngChannels,
@@ -60,6 +43,9 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
     
     if (watchHistory.length > 0) {
         const historySample = shuffleArray(watchHistory).slice(0, 10);
+        seeds = historySample.map(v => `${cleanTitleForSearch(v.title)} related`);
+    } else if (shortsHistory && shortsHistory.length > 0) {
+        const historySample = shuffleArray(shortsHistory).slice(0, 5);
         seeds = historySample.map(v => `${cleanTitleForSearch(v.title)} related`);
     } else if (subscribedChannels.length > 0) {
         const subSample = shuffleArray(subscribedChannels).slice(0, 5);
@@ -94,12 +80,21 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
         return true;
     });
 
-    if (watchHistory.length > 0) {
+    if (watchHistory.length > 0 || (shortsHistory && shortsHistory.length > 0)) {
         const historyKeywords = new Set<string>();
+        
         watchHistory.slice(0, 50).forEach(v => {
             extractKeywords(v.title).forEach(k => historyKeywords.add(k));
             extractKeywords(v.channelName).forEach(k => historyKeywords.add(k));
         });
+        
+        if (shortsHistory) {
+            shortsHistory.slice(0, 30).forEach(v => {
+                extractKeywords(v.title).forEach(k => historyKeywords.add(k));
+                extractKeywords(v.channelName).forEach(k => historyKeywords.add(k));
+            });
+        }
+
         subscribedChannels.forEach(c => {
             extractKeywords(c.name).forEach(k => historyKeywords.add(k));
         });
@@ -139,6 +134,7 @@ export const getXraiRecommendations = async (sources: RecommendationSource): Pro
 export const getXraiShorts = async (sources: RecommendationSource): Promise<Video[]> => {
     const { 
         watchHistory, 
+        shortsHistory,
         subscribedChannels,
         ngKeywords,
         ngChannels,
@@ -149,7 +145,10 @@ export const getXraiShorts = async (sources: RecommendationSource): Promise<Vide
     let seeds: string[] = [];
 
     // Prioritize history for shorts to make it addictive/relevant
-    if (watchHistory.length > 0) {
+    if (shortsHistory && shortsHistory.length > 0) {
+        const historySample = shuffleArray(shortsHistory).slice(0, 8);
+        seeds.push(...historySample.map(v => `${cleanTitleForSearch(v.title)} #shorts`));
+    } else if (watchHistory.length > 0) {
         const historySample = shuffleArray(watchHistory).slice(0, 8);
         seeds.push(...historySample.map(v => `${cleanTitleForSearch(v.title)} #shorts`));
     }
@@ -178,8 +177,10 @@ export const getXraiShorts = async (sources: RecommendationSource): Promise<Vide
     candidates = candidates.filter(v => {
         if (seenIds.has(v.id)) return false;
         
-        const sec = parseDuration(v.isoDuration, v.duration);
-        const isShort = (sec > 0 && sec <= 60) || v.title.toLowerCase().includes('#shorts');
+        // Basic check for shorts (duration <= 60s or #shorts in title)
+        // Note: isoDuration needs parsing, we assume caller or upper logic handles API raw data, 
+        // but here we filter what we got from search
+        const isShort = v.title.toLowerCase().includes('#shorts') || (v.duration.includes(':') && v.duration.length <= 5 && parseInt(v.duration.split(':')[0]) < 1 && parseInt(v.duration.split(':')[1]) <= 60);
         if (!isShort) return false;
 
         if (ngChannelIds.has(v.channelId)) return false;
