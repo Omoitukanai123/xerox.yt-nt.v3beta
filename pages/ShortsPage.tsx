@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import ShortsPlayer from '../components/ShortsPlayer';
@@ -55,44 +56,41 @@ const ShortsPage: React.FC = () => {
 
     // --- Pre-loading Logic ---
     // Only mount current video and the NEXT video.
-    // CSS display:none hides the next video but keeps it loaded in DOM.
-    // When user swipes, we just toggle visibility.
     const getVisibleIndices = () => {
         return [currentIndex, currentIndex + 1];
     };
 
-    const postPlayCommand = useCallback((index: number) => {
-        const video = videos[index];
-        if (!video) return;
-        const iframe = iframeRefs.current.get(video.id);
-        
+    const sendCommand = (iframe: HTMLIFrameElement, command: 'playVideo' | 'pauseVideo') => {
         if (iframe && iframe.contentWindow) {
             iframe.contentWindow.postMessage(
-                '{"event":"command","func":"playVideo","args":""}',
-                'https://www.youtubeeducation.com'
+                JSON.stringify({ event: 'command', func: command, args: '' }),
+                '*'
             );
         }
-    }, [videos]);
+    };
 
-    const postPauseCommand = useCallback((index: number) => {
-        const video = videos[index];
-        if (!video) return;
-        const iframe = iframeRefs.current.get(video.id);
+    // 再生制御の統合管理
+    // currentIndexが変わるたびに、Activeな動画を再生し、それ以外を確実に停止する
+    useEffect(() => {
+        const currentVideo = videos[currentIndex];
+        if (!currentVideo) return;
 
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage(
-                '{"event":"command","func":"pauseVideo","args":""}',
-                'https://www.youtubeeducation.com'
-            );
-        }
-    }, [videos]);
+        iframeRefs.current.forEach((iframe, id) => {
+            if (id === currentVideo.id) {
+                // Active: Play
+                sendCommand(iframe, 'playVideo');
+            } else {
+                // Inactive: Pause
+                sendCommand(iframe, 'pauseVideo');
+            }
+        });
+    }, [currentIndex, videos]);
 
     const fetchMoreShorts = useCallback(async () => {
         if (isFetchingMore) return;
         setIsFetchingMore(true);
         try {
             if (!context || context.type !== 'channel') {
-                // Pass all currently known IDs to the recommender to exclude them
                 const currentSeenIds = Array.from(seenVideoIdsRef.current) as string[];
                 
                 const shorts = await getXraiShorts({ 
@@ -103,7 +101,6 @@ const ShortsPage: React.FC = () => {
                 });
                 
                 setVideos(prev => {
-                    // Double check duplicates just in case
                     const newUniqueShorts = shorts.filter(s => !seenVideoIdsRef.current.has(s.id));
                     newUniqueShorts.forEach(s => seenVideoIdsRef.current.add(s.id));
                     return [...prev, ...newUniqueShorts];
@@ -126,7 +123,6 @@ const ShortsPage: React.FC = () => {
                 const params = await getPlayerConfig();
                 setPlayerParams(params);
 
-                // Scenario 1: Channel Context
                 if (context?.type === 'channel' && context.channelId) {
                     const { videos: channelShorts } = await getChannelShorts(context.channelId);
                     
@@ -146,12 +142,10 @@ const ShortsPage: React.FC = () => {
                         }
                     }
                     
-                    // Reset seen IDs for this new context
                     seenVideoIdsRef.current = new Set(channelShorts.map(v => v.id));
                     setVideos(channelShorts);
                     setCurrentIndex(initialIndex);
                 } 
-                // Scenario 2: Home/Recommendation Context
                 else {
                     const shorts = await getXraiShorts({ 
                         searchHistory, watchHistory, shortsHistory, subscribedChannels, 
@@ -194,14 +188,13 @@ const ShortsPage: React.FC = () => {
         if (videos.length === 0) {
             init();
         }
-    }, [videoId, context]); // Dependencies simplified to prevent re-init loops
+    }, [videoId, context]);
 
     // --- Pre-fetching Logic ---
     useEffect(() => {
         if (videos.length > 0 && context?.type !== 'channel') {
             const remainingVideos = videos.length - 1 - currentIndex;
             if (remainingVideos < 10 && !isFetchingMore && !isLoading) {
-                console.log(`Stock low (${remainingVideos} remaining). Fetching more...`);
                 fetchMoreShorts();
             }
         }
@@ -217,29 +210,20 @@ const ShortsPage: React.FC = () => {
     const handleNext = useCallback(() => {
         setCurrentIndex(prev => {
             if (prev < videos.length - 1) {
-                // Pause current before moving
-                postPauseCommand(prev);
-                // Move next
-                const nextIndex = prev + 1;
-                // Play next (it should be preloaded)
-                setTimeout(() => postPlayCommand(nextIndex), 100);
-                return nextIndex;
+                return prev + 1;
             }
             return prev;
         });
-    }, [videos.length, postPlayCommand, postPauseCommand]);
+    }, [videos.length]);
 
     const handlePrev = useCallback(() => {
         setCurrentIndex(prev => {
             if (prev > 0) {
-                postPauseCommand(prev);
-                const prevIndex = prev - 1;
-                setTimeout(() => postPlayCommand(prevIndex), 100);
-                return prevIndex;
+                return prev - 1;
             }
             return prev;
         });
-    }, [postPlayCommand, postPauseCommand]);
+    }, []);
     
     // Reset comments
     useEffect(() => {
@@ -249,10 +233,9 @@ const ShortsPage: React.FC = () => {
     
     const getParamsForVideo = (index: number, videoId: string) => {
         if (!playerParams) return '';
-        // Autoplay enabled for all, but we control via postMessage/DOM visibility
-        // Ideally we want autoplay=1 so it buffers, but we might need to pause non-active ones via JS if they auto-start.
-        // Actually for pre-loading, autoplay=1 is good, we just ensure the iframe is rendered.
-        let params = playerParams.replace(/&?autoplay=[01]/g, "") + "&playsinline=1&autoplay=1&enablejsapi=1";
+        // CRITICAL FIX: autoplay=0 ensures video doesn't start until we send postMessage.
+        // This prevents multiple audio streams from preloaded videos.
+        let params = playerParams.replace(/&?autoplay=[01]/g, "") + "&playsinline=1&autoplay=0&enablejsapi=1";
         params += `&loop=1&playlist=${videoId}`;
         return params;
     };
@@ -282,24 +265,18 @@ const ShortsPage: React.FC = () => {
         }
     };
     
-    const removeVideoAndAdvance = (videoIdToRemove: string, channelIdToRemove?: string) => {
-        // Just hide/skip logic, actual removal from array might mess up index tracking in this simple impl
-        handleNext();
-        // In a real app, we'd filter `videos` and adjust `currentIndex` carefully.
-    }
-
     const handleNotInterested = () => {
         const video = videos[currentIndex];
         if(!video) return;
         addHiddenVideo({ id: video.id, title: video.title, channelName: video.channelName });
-        removeVideoAndAdvance(video.id);
+        handleNext();
     };
 
     const handleBlockChannel = () => {
         const video = videos[currentIndex];
         if(!video) return;
         addNgChannel({ id: video.channelId, name: video.channelName, avatarUrl: video.channelAvatarUrl });
-        removeVideoAndAdvance(video.id, video.channelId);
+        handleNext();
     };
 
     useEffect(() => {
@@ -322,13 +299,10 @@ const ShortsPage: React.FC = () => {
     if (error) return <div className="text-center text-red-500 bg-red-100 dark:bg-red-900/50 p-4 rounded-lg m-4">{error}</div>;
     if (videos.length === 0 || !playerParams) return <div className="text-center p-8">No shorts found.</div>;
 
-    const currentVideo = videos[currentIndex];
-    const isTransparentTheme = theme.includes('glass');
-    const bgClass = isTransparentTheme ? 'bg-transparent' : 'bg-yt-white dark:bg-yt-black';
     const visibleIndices = getVisibleIndices();
 
     return (
-        <div className={`shorts-container flex justify-center items-center h-[calc(100vh-3.5rem)] w-full overflow-hidden relative ${bgClass}`}>
+        <div className={`shorts-container flex justify-center items-center h-[calc(100vh-3.5rem)] w-full overflow-hidden relative ${theme.includes('glass') ? 'bg-transparent' : 'bg-yt-white dark:bg-yt-black'}`}>
             <div className="relative flex items-center justify-center gap-4 h-full w-full max-w-7xl mx-auto px-2 sm:px-4">
                 {/* Main Player Container - Renders list but hides non-active */}
                 <div className="relative h-[85vh] max-h-[900px] aspect-[9/16] rounded-2xl shadow-2xl overflow-hidden bg-black flex-shrink-0 z-10">
@@ -354,8 +328,16 @@ const ShortsPage: React.FC = () => {
                                         if (el) iframeRefs.current.set(video.id, el);
                                         else iframeRefs.current.delete(video.id);
                                     }}
+                                    id={video.id}
                                     video={video} 
                                     playerParams={getParamsForVideo(index, video.id)} 
+                                    onLoad={(e) => {
+                                        // When iframe loads, if it's the active index, send play command immediately.
+                                        if (index === currentIndex) {
+                                            const iframe = e.currentTarget;
+                                            sendCommand(iframe, 'playVideo');
+                                        }
+                                    }}
                                  />
                              </div>
                          );

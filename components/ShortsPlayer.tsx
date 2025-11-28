@@ -7,9 +7,11 @@ import { Link } from 'react-router-dom';
 interface ShortsPlayerProps {
     video: Video;
     playerParams: string;
+    onLoad?: (e: React.SyntheticEvent<HTMLIFrameElement, Event>) => void;
+    id?: string;
 }
 
-const ShortsPlayer = forwardRef<HTMLIFrameElement, ShortsPlayerProps>(({ video, playerParams }, ref) => {
+const ShortsPlayer = forwardRef<HTMLIFrameElement, ShortsPlayerProps>(({ video, playerParams, onLoad, id }, ref) => {
     // Ensure enablejsapi=1 is present to allow postMessage commands for playback control.
     const srcParams = playerParams.includes('enablejsapi=1') ? playerParams : `${playerParams}&enablejsapi=1`;
 
@@ -17,11 +19,13 @@ const ShortsPlayer = forwardRef<HTMLIFrameElement, ShortsPlayerProps>(({ video, 
         <div className="h-full w-full relative flex-shrink-0 bg-yt-black group">
             <iframe
                 ref={ref}
+                id={id}
                 src={`https://www.youtubeeducation.com/embed/${video.id}${srcParams}`}
                 title={video.title}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
+                onLoad={onLoad}
                 className="w-full h-full pointer-events-auto"
             ></iframe>
             
