@@ -167,13 +167,13 @@ const PlaylistPage: React.FC = () => {
                                     </Link>
                                 </>
                              ) : (
-                                 <button disabled className="flex-1 bg-gray-200 dark:bg-white/10 text-gray-400 rounded-full py-2.5 font-bold text-sm cursor-not-allowed">再生</button>
+                                 <button disabled className="flex-1 bg-yt-light dark:bg-yt-dark-gray text-yt-light-gray rounded-full py-2.5 font-bold text-sm cursor-not-allowed">再生</button>
                              )}
                         </div>
 
                         {/* Additional Actions */}
                         <div className="flex justify-center gap-4 pt-2 border-t border-black/10 dark:border-white/10">
-                            <button onClick={handleDeletePlaylist} className="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-gray-500 dark:text-gray-300 hover:text-red-500 transition-colors" title="プレイリストを削除">
+                            <button onClick={handleDeletePlaylist} className="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-yt-light-gray hover:text-red-500 transition-colors" title="プレイリストを削除">
                                 <TrashIcon />
                             </button>
                         </div>
@@ -185,11 +185,11 @@ const PlaylistPage: React.FC = () => {
                     {isLoading ? (
                          <div className="flex flex-col gap-4">
                             {Array.from({ length: 5 }).map((_, i) => (
-                                <div key={i} className="h-24 bg-gray-200 dark:bg-white/5 rounded-xl animate-pulse" />
+                                <div key={i} className="h-24 bg-yt-light dark:bg-yt-dark-gray rounded-xl animate-pulse" />
                             ))}
                          </div>
                     ) : videos.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-gray-400 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-xl">
+                        <div className="flex flex-col items-center justify-center py-20 text-yt-light-gray border-2 border-dashed border-yt-light dark:border-yt-spec-20 rounded-xl">
                             <p>このプレイリストには動画がありません。</p>
                             <Link to="/" className="mt-4 text-yt-blue hover:underline">動画を探す</Link>
                         </div>
@@ -206,13 +206,13 @@ const PlaylistPage: React.FC = () => {
                                     onDragOver={(e) => e.preventDefault()}
                                 >
                                     {/* Index / Handle */}
-                                    <div className="w-8 flex items-center justify-center flex-shrink-0 text-gray-400 font-medium text-sm">
+                                    <div className="w-8 flex items-center justify-center flex-shrink-0 text-yt-light-gray font-medium text-sm">
                                         <span className="group-hover:hidden">{index + 1}</span>
                                         <PlayIcon className="hidden group-hover:block w-4 h-4 fill-current text-black dark:text-white" />
                                     </div>
 
                                     {/* Thumbnail */}
-                                    <Link to={`/watch/${video.id}?list=${playlist.id}`} className="relative w-40 aspect-video flex-shrink-0 rounded-lg overflow-hidden bg-gray-800">
+                                    <Link to={`/watch/${video.id}?list=${playlist.id}`} className="relative w-40 aspect-video flex-shrink-0 rounded-lg overflow-hidden bg-yt-dark-gray">
                                         <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
                                         <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">{video.duration}</span>
                                     </Link>
@@ -220,7 +220,7 @@ const PlaylistPage: React.FC = () => {
                                     {/* Info */}
                                     <Link to={`/watch/${video.id}?list=${playlist.id}`} className="flex-1 flex flex-col justify-center min-w-0">
                                         <h3 className="text-base font-bold text-black dark:text-white line-clamp-2 mb-1 group-hover:opacity-80">{video.title}</h3>
-                                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                        <div className="flex items-center gap-2 text-sm text-yt-light-gray">
                                             <span>{video.channelName}</span>
                                             <span>•</span>
                                             <span>{video.views}</span>
@@ -231,12 +231,12 @@ const PlaylistPage: React.FC = () => {
 
                                     {/* Menu Actions */}
                                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                         <div className="cursor-grab p-2 hover:bg-black/10 dark:hover:bg-white/20 rounded-full text-gray-400 dark:text-gray-300">
+                                         <div className="cursor-grab p-2 hover:bg-black/10 dark:hover:bg-white/20 rounded-full text-yt-light-gray">
                                             <DragHandleIcon />
                                         </div>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); playlistId && removeVideoFromPlaylist(playlistId, video.id); }} 
-                                            className="p-2 hover:bg-black/10 dark:hover:bg-white/20 rounded-full text-gray-400 dark:text-gray-300 hover:text-red-500"
+                                            className="p-2 hover:bg-black/10 dark:hover:bg-white/20 rounded-full text-yt-light-gray hover:text-red-500"
                                             title="削除"
                                         >
                                             <TrashIcon />

@@ -1,5 +1,5 @@
 import type { Video, Channel } from '../types';
-import { searchVideos, getRecommendedVideos } from './api';
+import { searchVideos, getRecommendedVideos, parseDuration } from './api';
 import { extractKeywords } from './xrai';
 import type { BlockedChannel, HiddenVideo } from '../contexts/PreferenceContext';
 
@@ -136,15 +136,11 @@ export const getXraiShorts = async (sources: RecommendationSource): Promise<Vide
         watchHistory, 
         shortsHistory,
         subscribedChannels,
-        ngKeywords,
-        ngChannels,
         hiddenVideos,
-        negativeKeywords
     } = sources;
 
     let seeds: string[] = [];
 
-    // Prioritize history for shorts to make it addictive/relevant
     if (shortsHistory && shortsHistory.length > 0) {
         const historySample = shuffleArray(shortsHistory).slice(0, 8);
         seeds.push(...historySample.map(v => `${cleanTitleForSearch(v.title)} #shorts`));
@@ -159,35 +155,48 @@ export const getXraiShorts = async (sources: RecommendationSource): Promise<Vide
     }
     
     if (seeds.length === 0) {
-        seeds = ["Funny #shorts", "Gaming #shorts", "LifeHacks #shorts", "Pets #shorts", "Trending #shorts"];
+        seeds = ["Funny #shorts", "Gaming #shorts", "LifeHacks #shorts", "Pets #shorts", "Trending Japan #shorts"];
     }
 
     const searchPromises = seeds.slice(0, 10).map(query => 
-        searchVideos(query, '1').then(res => res.videos).catch(() => [])
+        searchVideos(query, '1').then(res => [...res.videos, ...res.shorts]).catch(() => [])
     );
+    
+    // Also fetch trending videos to inject some popular shorts
+    const trendingPromise = getRecommendedVideos().then(res => res.videos).catch(() => []);
 
-    const nestedResults = await Promise.all(searchPromises);
+    const [nestedResults, trendingVideos] = await Promise.all([
+        Promise.all(searchPromises),
+        trendingPromise
+    ]);
+    
     let candidates = nestedResults.flat();
 
-    // Deduplicate and Filter
+    // Inject ~10% trending shorts
+    const trendingShorts = trendingVideos.filter(v => {
+        const seconds = parseDuration(v.isoDuration, v.duration);
+        return (seconds > 0 && seconds <= 60) || v.title.toLowerCase().includes('#shorts');
+    });
+
+    if (trendingShorts.length > 0) {
+        const trendingCount = Math.max(1, Math.floor(candidates.length * 0.1));
+        const shortsToInject = shuffleArray(trendingShorts).slice(0, trendingCount);
+        candidates.push(...shortsToInject);
+    }
+
     const hiddenVideoIdsSet = new Set(hiddenVideos.map(v => v.id));
     const seenIds = new Set<string>(hiddenVideoIdsSet);
-    const ngChannelIds = new Set(ngChannels.map(c => c.id));
 
-    candidates = candidates.filter(v => {
+    const finalCandidates = candidates.filter(v => {
         if (seenIds.has(v.id)) return false;
         
-        // Basic check for shorts (duration <= 60s or #shorts in title)
-        // Note: isoDuration needs parsing, we assume caller or upper logic handles API raw data, 
-        // but here we filter what we got from search
-        const isShort = v.title.toLowerCase().includes('#shorts') || (v.duration.includes(':') && v.duration.length <= 5 && parseInt(v.duration.split(':')[0]) < 1 && parseInt(v.duration.split(':')[1]) <= 60);
+        const seconds = parseDuration(v.isoDuration, v.duration);
+        const isShort = (seconds > 0 && seconds <= 60) || v.title.toLowerCase().includes('#shorts');
         if (!isShort) return false;
-
-        if (ngChannelIds.has(v.channelId)) return false;
 
         seenIds.add(v.id);
         return true;
     });
 
-    return shuffleArray(candidates);
+    return shuffleArray(finalCandidates);
 };
