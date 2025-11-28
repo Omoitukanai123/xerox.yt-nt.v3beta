@@ -364,6 +364,42 @@ app.get('/api/playlist', async (req, res) => {
 });
 
 // -------------------------------------------------------------------
+// Shorts API (/api/shorts)
+// -------------------------------------------------------------------
+app.get('/api/shorts', async (req, res) => {
+  try {
+    const youtube = await createYoutube();
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: "Missing channel id" });
+
+    const channel = await youtube.getChannel(id);
+
+    // Shorts タブを探す
+    const shortsTab = channel?.tabs?.find(t => t.title === "Shorts");
+    if (!shortsTab) {
+      return res.status(200).json({ shorts: [] });
+    }
+
+    // Shorts を読み込む
+    const feed = await shortsTab.getVideos();
+
+    let shorts = [];
+    if (feed.videos) {
+      shorts = feed.videos;
+    } else if (feed.items) {
+      shorts = feed.items;
+    }
+
+    res.status(200).json({ shorts });
+    
+  } catch (err) {
+    console.error('Error in /api/shorts:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// -------------------------------------------------------------------
 // ホームフィード（旧急上昇） API (/api/fvideo)
 // -------------------------------------------------------------------
 app.get('/api/fvideo', async (req, res) => {
