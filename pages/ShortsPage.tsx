@@ -33,14 +33,36 @@ const ShortsPage: React.FC = () => {
     const { ngKeywords, ngChannels, hiddenVideos, negativeKeywords, addHiddenVideo, addNgChannel } = usePreference();
     
     const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+
+    const postPlayCommand = useCallback(() => {
+        if (iframeRef.current && iframeRef.current.contentWindow) {
+            iframeRef.current.contentWindow.postMessage(
+                '{"event":"command","func":"playVideo","args":""}',
+                'https://www.youtubeeducation.com'
+            );
+        }
+    }, []);
 
     const handleNext = useCallback(() => {
-        setCurrentIndex(prev => (prev < videos.length - 1 ? prev + 1 : prev));
-    }, [videos.length]);
+        setCurrentIndex(prev => {
+            const nextIndex = prev < videos.length - 1 ? prev + 1 : prev;
+            if (prev !== nextIndex) {
+                setTimeout(postPlayCommand, 150);
+            }
+            return nextIndex;
+        });
+    }, [videos.length, postPlayCommand]);
 
-    const handlePrev = () => {
-        setCurrentIndex(prev => (prev > 0 ? prev - 1 : prev));
-    };
+    const handlePrev = useCallback(() => {
+        setCurrentIndex(prev => {
+            const prevIndex = prev > 0 ? prev - 1 : prev;
+            if (prev !== prevIndex) {
+                setTimeout(postPlayCommand, 150);
+            }
+            return prevIndex;
+        });
+    }, [postPlayCommand]);
 
     const fetchShorts = useCallback(async (isInitial: boolean) => {
         if (!isInitial && isFetchingMore) return;
@@ -99,7 +121,7 @@ const ShortsPage: React.FC = () => {
     
     const extendedParams = useMemo(() => {
         if (!playerParams) return '';
-        let params = playerParams.replace(/&?autoplay=[01]/g, "") + "&playsinline=1&autoplay=1";
+        let params = playerParams.replace(/&?autoplay=[01]/g, "") + "&playsinline=1&autoplay=1&enablejsapi=1";
         
         if (isAutoplayOn && videos.length > 0) {
             const playlistIds = videos.slice(currentIndex).map(v => v.id).join(',');
@@ -203,7 +225,7 @@ const ShortsPage: React.FC = () => {
         <div className={`shorts-container flex justify-center items-center h-[calc(100vh-3.5rem)] w-full overflow-hidden relative ${bgClass}`}>
             <div className="relative flex items-center justify-center gap-4 h-full">
                 <div className="relative h-[85vh] max-h-[900px] aspect-[9/16] rounded-2xl shadow-2xl overflow-hidden bg-black flex-shrink-0 z-10">
-                     <ShortsPlayer key={currentVideo.id} video={currentVideo} playerParams={extendedParams} />
+                     <ShortsPlayer ref={iframeRef} key={currentVideo.id} video={currentVideo} playerParams={extendedParams} />
                 </div>
 
                 <div className="flex flex-col gap-5 z-10">

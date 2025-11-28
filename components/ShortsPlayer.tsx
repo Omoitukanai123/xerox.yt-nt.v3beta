@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { forwardRef } from 'react';
 import type { Video } from '../types';
 // FIX: Use named import for Link from react-router-dom
 import { Link } from 'react-router-dom';
@@ -9,11 +9,15 @@ interface ShortsPlayerProps {
     playerParams: string;
 }
 
-const ShortsPlayer: React.FC<ShortsPlayerProps> = ({ video, playerParams }) => {
+const ShortsPlayer = forwardRef<HTMLIFrameElement, ShortsPlayerProps>(({ video, playerParams }, ref) => {
+    // Ensure enablejsapi=1 is present to allow postMessage commands for playback control.
+    const srcParams = playerParams.includes('enablejsapi=1') ? playerParams : `${playerParams}&enablejsapi=1`;
+
     return (
         <div className="h-full w-full relative flex-shrink-0 bg-yt-black group">
             <iframe
-                src={`https://www.youtubeeducation.com/embed/${video.id}${playerParams}`}
+                ref={ref}
+                src={`https://www.youtubeeducation.com/embed/${video.id}${srcParams}`}
                 title={video.title}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -36,5 +40,5 @@ const ShortsPlayer: React.FC<ShortsPlayerProps> = ({ video, playerParams }) => {
             </div>
         </div>
     );
-};
+});
 export default ShortsPlayer;
