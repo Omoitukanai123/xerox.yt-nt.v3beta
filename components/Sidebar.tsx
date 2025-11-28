@@ -1,4 +1,3 @@
-
 import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { HomeIcon, ShortsIcon, SubscriptionsIcon, HistoryIcon, PlaylistIcon } from './icons/Icons';
@@ -41,13 +40,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const { theme } = useTheme();
 
   let sidebarBgClass = 'bg-yt-white dark:bg-yt-black';
-  if (theme === 'light-glass') {
-    sidebarBgClass = 'bg-white/30 backdrop-blur-2xl border-r border-white/20';
-  }
-
   let smallSidebarBgClass = 'bg-yt-white dark:bg-yt-black';
+
   if (theme === 'light-glass') {
-    smallSidebarBgClass = 'bg-white/30 backdrop-blur-2xl border-r border-white/20';
+    // Use the class defined in styles.css for the strong glass effect
+    sidebarBgClass = 'glass-panel';
+    smallSidebarBgClass = 'glass-panel';
   }
 
 

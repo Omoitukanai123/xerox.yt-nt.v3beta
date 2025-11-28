@@ -85,7 +85,8 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, openHistoryDeletionModal
   
   let headerBgClass = 'bg-yt-white dark:bg-yt-black border-b border-yt-spec-light-20 dark:border-yt-spec-20';
   if (theme === 'light-glass') {
-    headerBgClass = 'bg-white/30 backdrop-blur-2xl border-b border-white/20';
+    // Use the class defined in styles.css for the strong glass effect
+    headerBgClass = 'glass-panel';
   }
 
 

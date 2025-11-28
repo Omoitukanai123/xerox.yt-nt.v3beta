@@ -1,4 +1,3 @@
-
 import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { HomeIcon, ShortsIcon, SubscriptionsIcon, YouIcon } from './icons/Icons';
@@ -16,7 +15,8 @@ const BottomNavigation: React.FC = () => {
   
   let bgClass = 'bg-yt-white dark:bg-yt-black';
   if (theme === 'light-glass') {
-    bgClass = 'bg-white/30 backdrop-blur-xl border-t border-white/20';
+    // Use the class defined in styles.css for the strong glass effect
+    bgClass = 'glass-panel border-t border-white/20';
   }
 
 

@@ -2,17 +2,44 @@
 html.light body { background-color: hsl(0, 0%, 100%); }
 html.dark body { background-color: hsl(0, 0%, 6%); }
 
-/* iOS 26 Concept Style - Light Glass (Frosty Prism) - REFINED */
+/* Light Glass - Blue Stained Glass / Prism Effect */
 html.light-glass body {
-    background-color: #f7f9fc;
+    background-color: #e0f2fe;
     background: 
-        fixed radial-gradient(circle at 10% 20%, hsla(220, 100%, 95%, 0.7), transparent 35%),
-        fixed radial-gradient(circle at 90% 80%, hsla(330, 100%, 95%, 0.6), transparent 35%),
-        fixed linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        /* Vivid Light Orbs */
+        fixed radial-gradient(circle at 15% 15%, hsla(190, 90%, 70%, 1) 0px, transparent 40%),
+        fixed radial-gradient(circle at 85% 20%, hsla(250, 80%, 80%, 1) 0px, transparent 40%),
+        fixed radial-gradient(circle at 20% 80%, hsla(210, 100%, 85%, 1) 0px, transparent 40%),
+        fixed radial-gradient(circle at 80% 80%, hsla(180, 90%, 75%, 1) 0px, transparent 40%),
+        /* Base Gradient */
+        fixed linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #e9d5ff 100%);
     background-size: 200% 200%;
-    animation: gradientAnimation 30s ease infinite;
+    animation: gradientAnimation 20s ease-in-out infinite alternate;
 }
 
+/* Glass Panel Effect - The "Magnifying Glass / Distortion" Look */
+.glass-panel {
+    /* Clear blueish tint */
+    background-color: rgba(220, 245, 255, 0.35) !important;
+    
+    /* The magic combo for "bleeding light" and distortion */
+    backdrop-filter: blur(35px) saturate(280%) brightness(115%) contrast(105%) !important;
+    -webkit-backdrop-filter: blur(35px) saturate(280%) brightness(115%) contrast(105%) !important;
+    
+    /* Edges and Thickness */
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.6) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.6) !important;
+    
+    /* Inner glow to simulate thick glass edges + drop shadow for depth */
+    box-shadow: 
+        0 8px 32px 0 rgba(31, 38, 135, 0.1),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+        inset 0 0 20px rgba(255, 255, 255, 0.4) !important;
+        
+    /* Subtle noise texture for realism */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+}
 
 @keyframes gradientAnimation {
     0% { background-position: 0% 50%; }
@@ -38,52 +65,39 @@ html.light-glass body {
   animation: scaleIn 0.2s ease-out forwards;
 }
 
-/* For Webkit-based browsers (Chrome, Safari, Edge) */
+/* Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
   background-color: transparent;
   border-radius: 20px;
 }
-
-/* Show scrollbar thumb on hover over the body or any scrollable element */
 body:hover::-webkit-scrollbar-thumb,
 div:hover::-webkit-scrollbar-thumb {
-  background-color: rgba(85, 85, 85, 0.5); /* Semi-transparent thumb for glass feel */
+  background-color: rgba(100, 130, 180, 0.5); 
 }
-
-html.light body:hover::-webkit-scrollbar-thumb,
-html.light div:hover::-webkit-scrollbar-thumb {
-  background-color: #aaa; /* Light theme scrollbar thumb */
+html.light body:hover::-webkit-scrollbar-thumb {
+  background-color: #aaa;
 }
-
-/* Fade in/out effect for scrollbar */
 ::-webkit-scrollbar-thumb {
   transition: background-color 0.2s ease-in-out;
 }
-
-/* For Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(85, 85, 85, 0.5) transparent;
+  scrollbar-color: rgba(100, 130, 180, 0.5) transparent;
 }
-
 html.light * {
     scrollbar-color: #aaa transparent;
 }
-
-/* Utility to hide scrollbar */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
