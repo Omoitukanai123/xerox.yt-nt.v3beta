@@ -363,71 +363,26 @@ app.get('/api/playlist', async (req, res) => {
   }
 });
 
-// -------------------------------------------------------------------
-// ゲストモード Shorts 抽出 API (/api/fshorts)
-// ホームフィードから Shorts だけ取り出す
-// -------------------------------------------------------------------
-app.get('/api/fshorts', async (req, res) => {
+app.get('/api/shorts', async (req, res) => {
   try {
     const youtube = await createYoutube();
-    const { page = '1', limit = '10' } = req.query;
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: "Missing channel id" });
 
-    let feed = await youtube.getHomeFeed();
+    const channel = await youtube.getChannel(id);
 
-    // ページ送り処理
-    let targetPage = parseInt(page);
-    let currentPage = 1;
+    // ★ これが Shorts タブの正式取得方法
+    const shortsFeed = await channel.getShorts();
 
-    while (currentPage < targetPage && feed.has_continuation) {
-      feed = await feed.getContinuation();
-      currentPage++;
-    }
-
-    // ------------------------------
-    // Shorts 抽出処理
-    // ------------------------------
-    const shorts = [];
-
-    const extractShorts = (obj) => {
-      if (!obj) return;
-
-      if (Array.isArray(obj)) {
-        obj.forEach(extractShorts);
-        return;
-      }
-
-      // Shorts セクション
-      if (obj.type === "Shorts") {
-        if (Array.isArray(obj.items)) {
-          shorts.push(...obj.items);
-        }
-      }
-
-      // 深いネストに備える
-      if (typeof obj === "object") {
-        for (const key in obj) {
-          extractShorts(obj[key]);
-        }
-      }
-    };
-
-    extractShorts(feed);
-
-    const max = parseInt(limit);
-    const resultShorts = shorts.slice(0, max);
-
-    res.status(200).json({
-      page: targetPage,
-      count: resultShorts.length,
-      hasMore: feed.has_continuation,
-      shorts: resultShorts
-    });
+    // ここを一切加工せず丸ごと返す（完全RAW）
+    res.status(200).json(shortsFeed);
 
   } catch (err) {
-    console.error("Error in /api/fshorts:", err);
+    console.error("Error in /api/shorts:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // -------------------------------------------------------------------
 // ホームフィード（旧急上昇） API (/api/fvideo)
