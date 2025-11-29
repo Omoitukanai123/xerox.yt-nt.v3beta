@@ -8,7 +8,7 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { useSearchHistory } from '../contexts/SearchHistoryContext';
 import { useHistory } from '../contexts/HistoryContext';
 import { usePreference } from '../contexts/PreferenceContext';
-import { LikeIcon, CommentIcon, CloseIcon, BlockIcon, TrashIcon } from '../components/icons/Icons';
+import { LikeIcon, CommentIcon, CloseIcon, BlockIcon, TrashIcon, BackArrowIcon } from '../components/icons/Icons';
 import CommentComponent from '../components/Comment';
 import { useTheme } from '../hooks/useTheme';
 
@@ -291,9 +291,10 @@ const ShortsPage: React.FC = () => {
             {context?.type === 'channel' && context.channelId && (
                 <Link
                     to={`/channel/${context.channelId}`}
-                    className="absolute top-4 left-4 z-20 px-4 py-2 bg-black/40 text-white text-sm font-semibold rounded-full backdrop-blur-sm hover:bg-black/60 transition-colors"
+                    className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/40 text-white text-sm font-semibold rounded-full backdrop-blur-sm hover:bg-black/60 transition-colors"
                 >
-                    ← チャンネルページに戻る
+                    <BackArrowIcon />
+                    <span>戻る</span>
                 </Link>
             )}
             <button

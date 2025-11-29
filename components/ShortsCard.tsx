@@ -16,7 +16,7 @@ const ShortsCard: React.FC<ShortsCardProps> = ({ video, context }) => {
     <Link 
       to={`/shorts/${video.id}`} 
       state={{ context }}
-      className="group" // Removed w-44 and flex-shrink-0 to allow flexible sizing
+      className="group block" // Use block display to ensure proper layout
     >
       {/* Changed background to black for proper letterboxing with object-contain */}
       <div className="relative rounded-xl overflow-hidden aspect-[9/16] bg-black shadow-md group-hover:shadow-xl transition-all duration-300">
