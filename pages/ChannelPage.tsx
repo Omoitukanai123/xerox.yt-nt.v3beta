@@ -205,8 +205,8 @@ const ChannelPage: React.FC = () => {
         return (
             <div className="flex flex-col gap-6 pb-10">
                 {homeData.topVideo && (
-                    <div className="flex flex-col md:flex-row gap-4 md:gap-8 border-b border-yt-spec-light-20 dark:border-yt-spec-20 pb-6">
-                         <div className="w-full md:w-[45%] lg:w-[550px] xl:w-[600px] aspect-video rounded-xl overflow-hidden flex-shrink-0 bg-yt-black shadow-lg">
+                    <div className="flex flex-col md:flex-row gap-6 md:gap-8 border-b border-yt-spec-light-20 dark:border-yt-spec-20 pb-8">
+                         <div className="w-full md:w-[50%] lg:w-[600px] aspect-video rounded-xl overflow-hidden flex-shrink-0 bg-yt-black shadow-xl">
                             {playerParams && (
                                 <iframe 
                                     src={`https://www.youtubeeducation.com/embed/${homeData.topVideo.videoId}${playerParams}`}
@@ -218,16 +218,21 @@ const ChannelPage: React.FC = () => {
                                 ></iframe>
                             )}
                         </div>
-                        <div className="flex-1 py-1 min-w-0 flex flex-col justify-center">
+                        <div className="flex-1 min-w-0 flex flex-col items-start pt-1">
                             <Link to={`/watch/${homeData.topVideo.videoId}`}>
-                                <h3 className="text-base md:text-2xl font-bold mb-2 line-clamp-2 leading-snug">{homeData.topVideo.title}</h3>
+                                <h3 className="text-xl md:text-2xl font-bold mb-3 line-clamp-2 leading-tight text-black dark:text-white">{homeData.topVideo.title}</h3>
                             </Link>
                             
-                            <div className="flex items-center text-sm md:text-base text-yt-light-gray font-medium">
-                                <span>{homeData.topVideo.viewCount}</span>
-                                <span className="mx-1">•</span>
-                                <span>{homeData.topVideo.published}</span>
+                            <div className="text-sm text-yt-light-gray space-y-1 mb-4 font-medium">
+                                <p>再生回数: {homeData.topVideo.viewCount}</p>
+                                <p>投稿日: {homeData.topVideo.published}</p>
                             </div>
+
+                            {homeData.topVideo.description && (
+                                <div className="text-sm text-yt-light-gray line-clamp-4 whitespace-pre-wrap leading-relaxed">
+                                    {homeData.topVideo.description}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
