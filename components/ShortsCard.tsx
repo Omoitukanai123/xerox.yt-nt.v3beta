@@ -16,16 +16,14 @@ const ShortsCard: React.FC<ShortsCardProps> = ({ video, context }) => {
     <Link 
       to={`/shorts/${video.id}`} 
       state={{ context }}
-      className="group block" // Use block display to ensure proper layout
+      className="group block"
     >
-      {/* Changed background to black for proper letterboxing with object-contain */}
-      <div className="relative rounded-xl overflow-hidden aspect-[9/16] bg-black shadow-md group-hover:shadow-xl transition-all duration-300">
+      <div className="relative rounded-xl overflow-hidden aspect-[9/16] bg-yt-dark-gray shadow-md group-hover:shadow-xl transition-all duration-300">
         <img 
           src={video.thumbnailUrl} 
           alt={video.title} 
           loading="lazy"
-          // Changed to object-contain to prevent image cropping
-          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" 
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
         />
       </div>
       <div className="mt-2 pr-2">
