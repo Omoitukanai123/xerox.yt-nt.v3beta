@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 // FIX: Use named imports for react-router-dom components and hooks.
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -164,7 +165,7 @@ const PlaylistPage: React.FC = () => {
                                     </Link>
                                     <Link 
                                         to={`/watch/${firstVideoId}?list=${playlist.id}&shuffle=1`}
-                                        className="flex-1 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-black dark:text-white rounded-full py-2.5 px-4 font-bold text-sm flex items-center justify-center gap-2 backdrop-blur-sm transition-colors"
+                                        className="flex-1 bg-yt-light dark:bg-yt-dark-gray hover:bg-yt-spec-light-20 dark:hover:bg-yt-gray text-black dark:text-white rounded-full py-2.5 px-4 font-bold text-sm flex items-center justify-center gap-2 transition-colors"
                                     >
                                         <ShuffleIcon className="fill-current text-black dark:text-white w-5 h-5" />
                                         <span>シャッフル</span>
