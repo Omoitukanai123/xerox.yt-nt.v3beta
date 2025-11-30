@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import ShortsPlayer from '../components/ShortsPlayer';
@@ -50,7 +51,7 @@ const ShortsPage: React.FC = () => {
     const { subscribedChannels } = useSubscription();
     const { searchHistory } = useSearchHistory();
     const { history: watchHistory, shortsHistory, addShortToHistory } = useHistory();
-    const { ngKeywords, ngChannels, hiddenVideos, negativeKeywords, addHiddenVideo, addNgChannel } = usePreference();
+    const { ngKeywords, ngChannels, hiddenVideos, negativeKeywords, addHiddenVideo, addNgChannel, isShortsAutoplayEnabled } = usePreference();
     
     const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const iframeRefs = useRef<Map<string, HTMLIFrameElement>>(new Map());
@@ -66,7 +67,7 @@ const ShortsPage: React.FC = () => {
         }
     };
 
-    // Play/Pause Control based on current index
+    // Play/Pause Control based on current index and autoplay setting
     useEffect(() => {
         const currentVideo = videos[currentIndex];
         if (!currentVideo) return;
@@ -78,12 +79,12 @@ const ShortsPage: React.FC = () => {
             }
         });
 
-        // Then play the current one
+        // Then play the current one if autoplay is enabled (for desktop/initial load)
         const currentIframe = iframeRefs.current.get(currentVideo.id);
-        if (currentIframe) {
+        if (currentIframe && isShortsAutoplayEnabled) {
             sendCommand(currentIframe, 'playVideo');
         }
-    }, [currentIndex, videos]);
+    }, [currentIndex, videos, isShortsAutoplayEnabled]);
 
     // URL Sync: Handle browser back/forward or external navigation
     useEffect(() => {
@@ -228,22 +229,34 @@ const ShortsPage: React.FC = () => {
     }, [currentIndex, videos, navigate, videoId, location.state]);
 
     const handleNext = useCallback(() => {
-        setCurrentIndex(prev => {
-            if (prev < videos.length - 1) {
-                return prev + 1;
+        const nextIndex = currentIndex + 1;
+        if (nextIndex < videos.length) {
+            const nextVideo = videos[nextIndex];
+            if (nextVideo) {
+                const nextIframe = iframeRefs.current.get(nextVideo.id);
+                if (nextIframe) {
+                    // Force play on user gesture to bypass iOS restrictions
+                    sendCommand(nextIframe, 'playVideo');
+                }
             }
-            return prev;
-        });
-    }, [videos.length]);
+            setCurrentIndex(nextIndex);
+        }
+    }, [currentIndex, videos]);
 
     const handlePrev = useCallback(() => {
-        setCurrentIndex(prev => {
-            if (prev > 0) {
-                return prev - 1;
+        const prevIndex = currentIndex - 1;
+        if (prevIndex >= 0) {
+            const prevVideo = videos[prevIndex];
+            if (prevVideo) {
+                const prevIframe = iframeRefs.current.get(prevVideo.id);
+                if (prevIframe) {
+                    // Force play on user gesture to bypass iOS restrictions
+                    sendCommand(prevIframe, 'playVideo');
+                }
             }
-            return prev;
-        });
-    }, []);
+            setCurrentIndex(prevIndex);
+        }
+    }, [currentIndex, videos]);
     
     // Reset comments when index changes
     useEffect(() => {
@@ -360,7 +373,7 @@ const ShortsPage: React.FC = () => {
                                     context={context}
                                     onLoad={(e) => {
                                         const iframe = e.currentTarget;
-                                        if (index === currentIndex) {
+                                        if (index === currentIndex && isShortsAutoplayEnabled) {
                                             sendCommand(iframe, 'playVideo');
                                         } else {
                                             // Explicitly pause if preloading in background

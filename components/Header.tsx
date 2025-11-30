@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 // FIX: Use named imports for react-router-dom components and hooks.
 import { useNavigate, Link } from 'react-router-dom';
@@ -21,7 +22,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, openHistoryDeletionModal
 
   const { theme, setTheme } = useTheme();
   const { addSearchTerm, clearSearchHistory } = useSearchHistory();
-  const { exportUserData, importUserData } = usePreference();
+  const { exportUserData, importUserData, isShortsAutoplayEnabled, toggleShortsAutoplay } = usePreference();
   const { clearHistory } = useHistory();
   const navigate = useNavigate();
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -191,6 +192,20 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, openHistoryDeletionModal
                                     onChange={toggleProxy}
                                 />
                                 <div className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${useProxy ? 'bg-yt-blue' : 'bg-yt-light-gray'}`}></div>
+                            </div>
+                        </label>
+                        <label className="flex items-center justify-between px-4 py-2 hover:bg-yt-spec-light-10 dark:hover:bg-yt-spec-10 cursor-pointer">
+                            <span className="text-sm text-black dark:text-white">ショートを自動再生</span>
+                            <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input 
+                                    type="checkbox" 
+                                    name="shortsAutoplayToggle" 
+                                    id="shortsAutoplayToggle" 
+                                    className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer checked:right-0 right-5"
+                                    checked={isShortsAutoplayEnabled}
+                                    onChange={toggleShortsAutoplay}
+                                />
+                                <div className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${isShortsAutoplayEnabled ? 'bg-yt-blue' : 'bg-yt-light-gray'}`}></div>
                             </div>
                         </label>
 

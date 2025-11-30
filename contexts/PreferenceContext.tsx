@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { extractKeywords } from '../utils/xrai';
 import type { Video } from '../types';
@@ -19,6 +20,7 @@ interface PreferenceContextType {
   ngChannels: BlockedChannel[];
   hiddenVideos: HiddenVideo[];
   negativeKeywords: Map<string, number>;
+  isShortsAutoplayEnabled: boolean;
   
   addNgKeyword: (keyword: string) => void;
   removeNgKeyword: (keyword: string) => void;
@@ -32,6 +34,7 @@ interface PreferenceContextType {
   isvideoHidden: (videoId: string) => boolean;
   removeNegativeProfileForVideos: (videos: Video[]) => void;
 
+  toggleShortsAutoplay: () => void;
   exportUserData: () => void;
   importUserData: (file: File) => Promise<void>;
 }
@@ -66,6 +69,15 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
          return new Map<string, number>(raw);
      } catch { return new Map(); }
   });
+  
+  const [isShortsAutoplayEnabled, setIsShortsAutoplayEnabled] = useState<boolean>(() => {
+    try {
+        const item = window.localStorage.getItem('isShortsAutoplayEnabled');
+        return item !== 'false'; // Default to true if not set or invalid
+    } catch {
+        return true;
+    }
+  });
 
   useEffect(() => { localStorage.setItem('ngKeywords', JSON.stringify(ngKeywords)); }, [ngKeywords]);
   useEffect(() => { localStorage.setItem('ngChannels', JSON.stringify(ngChannels)); }, [ngChannels]);
@@ -73,6 +85,9 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
   useEffect(() => { 
       localStorage.setItem('negativeKeywords', JSON.stringify(Array.from(negativeKeywords.entries()))); 
   }, [negativeKeywords]);
+  useEffect(() => {
+    localStorage.setItem('isShortsAutoplayEnabled', String(isShortsAutoplayEnabled));
+  }, [isShortsAutoplayEnabled]);
 
   const addNgKeyword = (k: string) => !ngKeywords.includes(k) && setNgKeywords(p => [...p, k]);
   const removeNgKeyword = (k: string) => setNgKeywords(p => p.filter(x => x !== k));
@@ -143,6 +158,10 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const isvideoHidden = (videoId: string) => hiddenVideos.some(v => v.id === videoId);
 
+  const toggleShortsAutoplay = () => {
+    setIsShortsAutoplayEnabled(prev => !prev);
+  };
+
   const exportUserData = () => {
     const data = {
       timestamp: new Date().toISOString(),
@@ -150,7 +169,7 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
       subscriptions: JSON.parse(localStorage.getItem('subscribedChannels') || '[]'),
       history: JSON.parse(localStorage.getItem('videoHistory') || '[]'),
       playlists: JSON.parse(localStorage.getItem('playlists') || '[]'),
-      preferences: { ngKeywords, ngChannels, hiddenVideos }
+      preferences: { ngKeywords, ngChannels, hiddenVideos, isShortsAutoplayEnabled }
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -182,6 +201,7 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
                 ? p.hiddenVideos 
                 : [];
             localStorage.setItem('hiddenVideos', JSON.stringify(hidden));
+            localStorage.setItem('isShortsAutoplayEnabled', String(p.isShortsAutoplayEnabled ?? true));
           }
 
           window.location.reload();
@@ -197,10 +217,10 @@ export const PreferenceProvider: React.FC<{ children: ReactNode }> = ({ children
 
   return (
     <PreferenceContext.Provider value={{
-      ngKeywords, ngChannels, hiddenVideos, negativeKeywords,
+      ngKeywords, ngChannels, hiddenVideos, negativeKeywords, isShortsAutoplayEnabled,
       addNgKeyword, removeNgKeyword, addNgChannel, removeNgChannel, isNgChannel,
       addHiddenVideo, unhideVideo, isvideoHidden, removeNegativeProfileForVideos,
-      exportUserData, importUserData
+      toggleShortsAutoplay, exportUserData, importUserData
     }}>
       {children}
     </PreferenceContext.Provider>
