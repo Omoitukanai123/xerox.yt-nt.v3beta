@@ -14,14 +14,6 @@ import PlaylistPanel from '../components/PlaylistPanel';
 import RelatedVideoCard from '../components/RelatedVideoCard';
 import { LikeIcon, SaveIcon, MoreIconHorizontal, ShareIcon, DislikeIcon, ChevronRightIcon } from '../components/icons/Icons';
 
-declare global {
-    interface Window {
-        onYouTubeIframeAPIReady?: () => void;
-        YT?: any;
-    }
-}
-
-
 const VideoPlayerPage: React.FC = () => {
     const { videoId } = useParams<{ videoId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -35,14 +27,12 @@ const VideoPlayerPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
-    const playerRef = useRef<HTMLDivElement>(null);
     const [playlistVideos, setPlaylistVideos] = useState<Video[]>([]);
     const [isCollaboratorMenuOpen, setIsCollaboratorMenuOpen] = useState(false);
     const collaboratorMenuRef = useRef<HTMLDivElement>(null);
     
-    // Use ref to hold player instance to prevent stale closure issues and unnecessary re-renders
-    const playerInstanceRef = useRef<any>(null);
-    const [playerConfig, setPlayerConfig] = useState<Record<string, string> | null>(null);
+    // State for player params string instead of YT.Player object
+    const [playerParams, setPlayerParams] = useState<string>('');
 
     const [isShuffle, setIsShuffle] = useState(searchParams.get('shuffle') === '1');
     const [isLoop, setIsLoop] = useState(searchParams.get('loop') === '1');
@@ -61,112 +51,26 @@ const VideoPlayerPage: React.FC = () => {
         setIsLoop(searchParams.get('loop') === '1');
     }, [searchParams]);
     
-    const shuffledPlaylistVideos = useMemo(() => {
-        if (!isShuffle || playlistVideos.length === 0) return playlistVideos;
-        const currentIndex = playlistVideos.findIndex(v => v.id === videoId);
-        if (currentIndex === -1) return [...playlistVideos].sort(() => Math.random() - 0.5);
-        const otherVideos = [...playlistVideos.slice(0, currentIndex), ...playlistVideos.slice(currentIndex + 1)];
-        const shuffledOthers = otherVideos.sort(() => Math.random() - 0.5);
-        return [playlistVideos[currentIndex], ...shuffledOthers];
-    }, [isShuffle, playlistVideos, videoId]);
-
-    const onPlayerStateChange = useCallback((event: any) => {
-        // YT.PlayerState.ENDED is 0
-        if (event.data === 0 && playlistId) { 
-            const currentVideos = isShuffle ? shuffledPlaylistVideos : playlistVideos;
-            const currentIndex = currentVideos.findIndex(v => v.id === videoId);
-
-            if (currentIndex !== -1) {
-                let nextIndex = currentIndex + 1;
-                
-                if (isLoop && nextIndex >= currentVideos.length) {
-                    nextIndex = 0;
-                }
-
-                if (nextIndex < currentVideos.length) {
-                    const nextVideo = currentVideos[nextIndex];
-                    const newSearchParams = new URLSearchParams(searchParams);
-                    // Navigate to the next video, which will trigger a full page data reload
-                    navigate(`/watch/${nextVideo.id}?${newSearchParams.toString()}`, { replace: true });
-                }
-            }
-        }
-    }, [playlistId, isShuffle, isLoop, shuffledPlaylistVideos, playlistVideos, videoId, navigate, searchParams]);
-
-    // Keep the latest callback in a ref to access it inside the player event listener
-    const onPlayerStateChangeRef = useRef<(event: any) => void>(() => {});
-    useEffect(() => {
-        onPlayerStateChangeRef.current = onPlayerStateChange;
-    }, [onPlayerStateChange]);
+    // Playlist auto-advance logic has been removed as it requires the YouTube IFrame Player API,
+    // which is not compatible with the requested 'youtubeeducation.com' host.
 
     useEffect(() => {
         const fetchConfig = async () => {
             try {
                 const paramsString = await getPlayerConfig();
-                const searchParams = new URLSearchParams(paramsString);
-                const config: Record<string, string> = {};
-                for (const [key, value] of searchParams.entries()) {
-                    config[key] = value;
-                }
-                setPlayerConfig(config);
+                const params = new URLSearchParams(paramsString);
+                
+                // Ensure autoplay is enabled for a better user experience.
+                params.set('autoplay', '1');
+                
+                setPlayerParams(params.toString());
             } catch (error) {
                 console.error("Failed to fetch player config, using defaults", error);
-                setPlayerConfig({ autoplay: '1', playsinline: '1', rel: '0' });
+                setPlayerParams('autoplay=1&rel=0');
             }
         };
         fetchConfig();
     }, []);
-
-    // Initialize or Update Player
-    useEffect(() => {
-        // Only run when we have a video ID and the player config
-        if (!videoId || !playerConfig) return;
-
-        const loadOrUpdatePlayer = () => {
-             if (!videoId || !playerConfig) return; 
-
-            if (playerInstanceRef.current && typeof playerInstanceRef.current.loadVideoById === 'function') {
-                playerInstanceRef.current.loadVideoById(videoId);
-                return;
-            }
-
-            if (window.YT && window.YT.Player && playerRef.current) {
-                playerInstanceRef.current = new window.YT.Player(playerRef.current, {
-                    videoId: videoId,
-                    host: 'https://www.youtubeeducation.com',
-                    playerVars: playerConfig,
-                    events: {
-                        'onStateChange': (event: any) => onPlayerStateChangeRef.current(event)
-                    }
-                });
-            }
-        };
-
-        if (!window.YT) {
-            const tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            window.onYouTubeIframeAPIReady = loadOrUpdatePlayer;
-            const firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-        } else {
-            loadOrUpdatePlayer();
-        }
-    }, [videoId, playerConfig]);
-
-    // Cleanup on unmount only
-    useEffect(() => {
-        return () => {
-            if (playerInstanceRef.current) {
-                try {
-                    playerInstanceRef.current.destroy();
-                } catch(e) {
-                    console.warn("Player destroy failed", e);
-                }
-                playerInstanceRef.current = null;
-            }
-        };
-    }, []);
-
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -301,9 +205,7 @@ const VideoPlayerPage: React.FC = () => {
         return (
             <div className="flex flex-col md:flex-row gap-6 max-w-[1750px] mx-auto px-4 md:px-6">
                 <div className="flex-grow lg:w-2/3">
-                    <div className="aspect-video bg-yt-black rounded-xl overflow-hidden">
-                        <div ref={playerRef} className="w-full h-full" />
-                    </div>
+                    <div className="aspect-video bg-yt-black rounded-xl overflow-hidden"></div>
                     <div className="mt-4 p-4 rounded-lg bg-red-100 dark:bg-red-900/50 text-black dark:text-yt-white">
                         <h2 className="text-lg font-bold mb-2 text-red-500">動画情報の取得エラー</h2>
                         <p>{error}</p>
@@ -345,7 +247,16 @@ const VideoPlayerPage: React.FC = () => {
             <div className="flex-1 min-w-0 max-w-full">
                 {/* Video Player Area */}
                 <div className="w-full aspect-video bg-yt-black rounded-xl overflow-hidden shadow-lg relative z-10">
-                    <div ref={playerRef} className="w-full h-full" />
+                    {playerParams && videoId && (
+                        <iframe
+                            src={`https://www.youtubeeducation.com/embed/${videoId}?${playerParams}`}
+                            title={videoDetails.title}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="w-full h-full"
+                        ></iframe>
+                    )}
                 </div>
 
                 <div className="">
