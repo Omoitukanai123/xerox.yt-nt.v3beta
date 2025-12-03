@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 // FIX: Use named imports for react-router-dom components and hooks.
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
@@ -45,6 +46,7 @@ const VideoPlayerPage: React.FC = () => {
     const [playerMode, setPlayerMode] = useState<'player' | 'stream'>('player');
     const [streamData, setStreamData] = useState<any>(null);
     const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+    const [isStreamDataLoading, setIsStreamDataLoading] = useState(false);
     const downloadMenuRef = useRef<HTMLDivElement>(null);
 
     const { isSubscribed, subscribe, unsubscribe } = useSubscription();
@@ -147,14 +149,17 @@ const VideoPlayerPage: React.FC = () => {
 
     // Fetch raw stream data when needed (Stream mode or Download)
     const fetchStreamDataIfNeeded = useCallback(async () => {
-        if (streamData || !videoId) return;
+        if (streamData || !videoId || isStreamDataLoading) return;
+        setIsStreamDataLoading(true);
         try {
             const data = await getRawStreamData(videoId);
             setStreamData(data);
         } catch (e) {
             console.error("Failed to fetch stream data", e);
+        } finally {
+            setIsStreamDataLoading(false);
         }
-    }, [videoId, streamData]);
+    }, [videoId, streamData, isStreamDataLoading]);
 
     useEffect(() => {
         if (playerMode === 'stream') {
@@ -176,6 +181,7 @@ const VideoPlayerPage: React.FC = () => {
                 setRelatedVideos([]);
                 setStreamData(null); // Reset stream data on video change
                 setPlayerMode('player'); // Reset to default player
+                setIsDownloadMenuOpen(false); // Close menu on navigation
                 window.scrollTo(0, 0);
             }
 
@@ -358,10 +364,12 @@ const VideoPlayerPage: React.FC = () => {
     };
 
     const handleDownloadClick = () => {
-        if (!isDownloadMenuOpen) {
+        const willBeOpen = !isDownloadMenuOpen;
+        setIsDownloadMenuOpen(willBeOpen);
+        
+        if (willBeOpen && !streamData && !isStreamDataLoading) {
             fetchStreamDataIfNeeded();
         }
-        setIsDownloadMenuOpen(!isDownloadMenuOpen);
     };
 
     if (isLoading) {
@@ -434,8 +442,18 @@ const VideoPlayerPage: React.FC = () => {
                         getStreamUrl ? (
                             <HlsVideoPlayer src={getStreamUrl} autoPlay={true} />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white">
-                                {streamData ? 'ストリームが見つかりませんでした' : '読み込み中...'}
+                            <div className="w-full h-full flex items-center justify-center text-white bg-black">
+                                {isStreamDataLoading ? (
+                                    <div className="flex flex-col items-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mb-2"></div>
+                                        <span>ストリームを読み込み中...</span>
+                                    </div>
+                                ) : (
+                                    <div className="text-center">
+                                        <p>ストリームが見つかりませんでした。</p>
+                                        <button onClick={fetchStreamDataIfNeeded} className="mt-2 text-blue-400 hover:underline">再試行</button>
+                                    </div>
+                                )}
                             </div>
                         )
                     )}
@@ -552,19 +570,27 @@ const VideoPlayerPage: React.FC = () => {
                             <div className="relative" ref={downloadMenuRef}>
                                 <button 
                                     onClick={handleDownloadClick}
-                                    className="flex items-center bg-yt-light dark:bg-[#272727] rounded-full h-9 px-3 sm:px-4 hover:bg-[#e5e5e5] dark:hover:bg-[#3f3f3f] transition-colors whitespace-nowrap gap-2 flex-shrink-0"
+                                    className={`flex items-center bg-yt-light dark:bg-[#272727] rounded-full h-9 px-3 sm:px-4 hover:bg-[#e5e5e5] dark:hover:bg-[#3f3f3f] transition-colors whitespace-nowrap gap-2 flex-shrink-0 ${isDownloadMenuOpen ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                                 >
                                     <DownloadIcon />
                                     <span className="text-sm font-semibold hidden sm:inline">ダウンロード</span>
                                 </button>
                                 {isDownloadMenuOpen && (
-                                    <div className="absolute top-full right-0 mt-2 w-56 bg-yt-white dark:bg-yt-light-black rounded-lg shadow-xl border border-yt-spec-light-20 dark:border-yt-spec-20 z-50 overflow-hidden">
-                                        <div className="px-3 py-2 text-xs font-bold text-yt-light-gray border-b border-yt-spec-light-20 dark:border-yt-spec-20">
-                                            ダウンロード形式を選択
+                                    <div className="absolute top-full right-0 mt-2 w-64 bg-yt-white dark:bg-yt-light-black rounded-lg shadow-xl border border-yt-spec-light-20 dark:border-yt-spec-20 z-50 overflow-hidden">
+                                        <div className="px-3 py-2 text-xs font-bold text-yt-light-gray border-b border-yt-spec-light-20 dark:border-yt-spec-20 flex justify-between items-center">
+                                            <span>ダウンロード形式を選択</span>
+                                            {isStreamDataLoading && <span className="text-xs text-yt-blue">読み込み中...</span>}
                                         </div>
                                         <div className="max-h-64 overflow-y-auto">
-                                            {!streamData ? (
-                                                <div className="p-4 text-center text-sm text-yt-light-gray">読み込み中...</div>
+                                            {isStreamDataLoading ? (
+                                                <div className="p-4 flex justify-center">
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-yt-blue"></div>
+                                                </div>
+                                            ) : !streamData ? (
+                                                <div className="p-4 text-center text-sm text-yt-light-gray">
+                                                    <p>データを取得できませんでした。</p>
+                                                    <button onClick={fetchStreamDataIfNeeded} className="text-yt-blue hover:underline mt-2 text-xs">再試行</button>
+                                                </div>
                                             ) : (
                                                 <>
                                                     {/* Video Options */}
@@ -578,10 +604,11 @@ const VideoPlayerPage: React.FC = () => {
                                                                 href={url} 
                                                                 target="_blank" 
                                                                 rel="noopener noreferrer"
-                                                                className="flex items-center px-4 py-3 hover:bg-yt-spec-light-10 dark:hover:bg-yt-spec-10 text-sm text-black dark:text-white"
+                                                                className="flex items-center justify-between px-4 py-3 hover:bg-yt-spec-light-10 dark:hover:bg-yt-spec-10 text-sm text-black dark:text-white"
                                                                 onClick={() => setIsDownloadMenuOpen(false)}
                                                             >
-                                                                {label}
+                                                                <span>{label}</span>
+                                                                <span className="text-xs text-yt-light-gray">MP4</span>
                                                             </a>
                                                         );
                                                     })}
@@ -591,10 +618,11 @@ const VideoPlayerPage: React.FC = () => {
                                                             href={streamData.videourl['144p'].audio.url} 
                                                             target="_blank" 
                                                             rel="noopener noreferrer"
-                                                            className="flex items-center px-4 py-3 hover:bg-yt-spec-light-10 dark:hover:bg-yt-spec-10 text-sm text-black dark:text-white border-t border-yt-spec-light-20 dark:border-yt-spec-20"
+                                                            className="flex items-center justify-between px-4 py-3 hover:bg-yt-spec-light-10 dark:hover:bg-yt-spec-10 text-sm text-black dark:text-white border-t border-yt-spec-light-20 dark:border-yt-spec-20"
                                                             onClick={() => setIsDownloadMenuOpen(false)}
                                                         >
-                                                            音声のみ (m4a)
+                                                            <span>音声のみ</span>
+                                                            <span className="text-xs text-yt-light-gray">m4a</span>
                                                         </a>
                                                     )}
                                                 </>
