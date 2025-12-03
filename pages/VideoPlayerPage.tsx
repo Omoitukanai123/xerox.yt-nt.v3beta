@@ -9,10 +9,10 @@ import { useHistory } from '../contexts/HistoryContext';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import VideoPlayerPageSkeleton from '../components/skeletons/VideoPlayerPageSkeleton';
 import PlaylistModal from '../components/PlaylistModal';
+import DownloadModal from '../components/DownloadModal';
 import CommentComponent from '../components/Comment';
 import PlaylistPanel from '../components/PlaylistPanel';
 import RelatedVideoCard from '../components/RelatedVideoCard';
-import HlsVideoPlayer from '../components/HlsVideoPlayer';
 import { LikeIcon, SaveIcon, MoreIconHorizontal, DownloadIcon, DislikeIcon, ChevronRightIcon } from '../components/icons/Icons';
 
 const VideoPlayerPage: React.FC = () => {
@@ -45,9 +45,8 @@ const VideoPlayerPage: React.FC = () => {
     // New state for Player Mode and Streaming
     const [playerMode, setPlayerMode] = useState<'player' | 'stream'>('player');
     const [streamData, setStreamData] = useState<any>(null);
-    const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+    const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
     const [isStreamDataLoading, setIsStreamDataLoading] = useState(false);
-    const downloadMenuRef = useRef<HTMLDivElement>(null);
 
     const { isSubscribed, subscribe, unsubscribe } = useSubscription();
     const { addVideoToHistory } = useHistory();
@@ -85,9 +84,6 @@ const VideoPlayerPage: React.FC = () => {
         const handleClickOutside = (event: MouseEvent) => {
             if (collaboratorMenuRef.current && !collaboratorMenuRef.current.contains(event.target as Node)) {
                 setIsCollaboratorMenuOpen(false);
-            }
-            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
-                setIsDownloadMenuOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -181,7 +177,7 @@ const VideoPlayerPage: React.FC = () => {
                 setRelatedVideos([]);
                 setStreamData(null); // Reset stream data on video change
                 setPlayerMode('player'); // Reset to default player
-                setIsDownloadMenuOpen(false); // Close menu on navigation
+                setIsDownloadModalOpen(false); // Close menu on navigation
                 window.scrollTo(0, 0);
             }
 
@@ -322,16 +318,11 @@ const VideoPlayerPage: React.FC = () => {
         return `${src}?${params}`;
     }, [videoDetails, playerParams]);
 
-    // Get highest quality M3U8 for Stream mode
+    // Get 360p MP4 URL for Stream mode
     const getStreamUrl = useMemo(() => {
-        if (!streamData?.m3u8) return null;
-        const qualities = ['1080p', '720p', '480p', '360p', '240p', '144p'];
-        for (const quality of qualities) {
-            if (streamData.m3u8[quality]?.url?.url) {
-                return streamData.m3u8[quality].url.url;
-            }
-        }
-        return null;
+        if (!streamData?.videourl) return null;
+        // Prioritize 360p as requested
+        return streamData.videourl['360p']?.video?.url || null;
     }, [streamData]);
 
     const updateUrlParams = (key: string, value: string | null) => {
@@ -364,10 +355,8 @@ const VideoPlayerPage: React.FC = () => {
     };
 
     const handleDownloadClick = () => {
-        const willBeOpen = !isDownloadMenuOpen;
-        setIsDownloadMenuOpen(willBeOpen);
-        
-        if (willBeOpen && !streamData && !isStreamDataLoading) {
+        setIsDownloadModalOpen(true);
+        if (!streamData && !isStreamDataLoading) {
             fetchStreamDataIfNeeded();
         }
     };
@@ -440,7 +429,17 @@ const VideoPlayerPage: React.FC = () => {
                         )
                     ) : (
                         getStreamUrl ? (
-                            <HlsVideoPlayer src={getStreamUrl} autoPlay={true} />
+                            // Standard HTML5 Video for 360p MP4 Playback
+                            <video 
+                                src={getStreamUrl} 
+                                controls 
+                                autoPlay 
+                                playsInline 
+                                className="w-full h-full"
+                                onError={(e) => console.error("Video Playback Error", e)}
+                            >
+                                お使いのブラウザは動画タグをサポートしていません。
+                            </video>
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-white bg-black">
                                 {isStreamDataLoading ? (
@@ -450,7 +449,7 @@ const VideoPlayerPage: React.FC = () => {
                                     </div>
                                 ) : (
                                     <div className="text-center">
-                                        <p>ストリームが見つかりませんでした。</p>
+                                        <p>360pストリームが見つかりませんでした。</p>
                                         <button onClick={fetchStreamDataIfNeeded} className="mt-2 text-blue-400 hover:underline">再試行</button>
                                     </div>
                                 )}
@@ -566,71 +565,14 @@ const VideoPlayerPage: React.FC = () => {
                                 </button>
                             </div>
 
-                            {/* Download Button (Replacing Share) */}
-                            <div className="relative" ref={downloadMenuRef}>
-                                <button 
-                                    onClick={handleDownloadClick}
-                                    className={`flex items-center bg-yt-light dark:bg-[#272727] rounded-full h-9 px-3 sm:px-4 hover:bg-[#e5e5e5] dark:hover:bg-[#3f3f3f] transition-colors whitespace-nowrap gap-2 flex-shrink-0 ${isDownloadMenuOpen ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
-                                >
-                                    <DownloadIcon />
-                                    <span className="text-sm font-semibold hidden sm:inline">ダウンロード</span>
-                                </button>
-                                {isDownloadMenuOpen && (
-                                    <div className="absolute top-full right-0 mt-2 w-64 bg-yt-white dark:bg-yt-light-black rounded-lg shadow-xl border border-yt-spec-light-20 dark:border-yt-spec-20 z-50 overflow-hidden">
-                                        <div className="px-3 py-2 text-xs font-bold text-yt-light-gray border-b border-yt-spec-light-20 dark:border-yt-spec-20 flex justify-between items-center">
-                                            <span>ダウンロード形式を選択</span>
-                                            {isStreamDataLoading && <span className="text-xs text-yt-blue">読み込み中...</span>}
-                                        </div>
-                                        <div className="max-h-64 overflow-y-auto">
-                                            {isStreamDataLoading ? (
-                                                <div className="p-4 flex justify-center">
-                                                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-yt-blue"></div>
-                                                </div>
-                                            ) : !streamData ? (
-                                                <div className="p-4 text-center text-sm text-yt-light-gray">
-                                                    <p>データを取得できませんでした。</p>
-                                                    <button onClick={fetchStreamDataIfNeeded} className="text-yt-blue hover:underline mt-2 text-xs">再試行</button>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    {/* Video Options */}
-                                                    {['1080p', '720p', '480p', '360p', '240p'].map(quality => {
-                                                        const url = streamData.videourl?.[quality]?.video?.url;
-                                                        if (!url) return null;
-                                                        const label = quality === '360p' ? quality : `${quality} (音声なし)`;
-                                                        return (
-                                                            <a 
-                                                                key={quality} 
-                                                                href={url} 
-                                                                target="_blank" 
-                                                                rel="noopener noreferrer"
-                                                                className="flex items-center justify-between px-4 py-3 hover:bg-yt-spec-light-10 dark:hover:bg-yt-spec-10 text-sm text-black dark:text-white"
-                                                                onClick={() => setIsDownloadMenuOpen(false)}
-                                                            >
-                                                                <span>{label}</span>
-                                                                <span className="text-xs text-yt-light-gray">MP4</span>
-                                                            </a>
-                                                        );
-                                                    })}
-                                                    {/* Audio Option */}
-                                                    {streamData.videourl?.['144p']?.audio?.url && (
-                                                        <a 
-                                                            href={streamData.videourl['144p'].audio.url} 
-                                                            target="_blank" 
-                                                            rel="noopener noreferrer"
-                                                            className="flex items-center justify-between px-4 py-3 hover:bg-yt-spec-light-10 dark:hover:bg-yt-spec-10 text-sm text-black dark:text-white border-t border-yt-spec-light-20 dark:border-yt-spec-20"
-                                                            onClick={() => setIsDownloadMenuOpen(false)}
-                                                        >
-                                                            <span>音声のみ</span>
-                                                            <span className="text-xs text-yt-light-gray">m4a</span>
-                                                        </a>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                            {/* Download Button */}
+                            <button 
+                                onClick={handleDownloadClick}
+                                className="flex items-center bg-yt-light dark:bg-[#272727] rounded-full h-9 px-3 sm:px-4 hover:bg-[#e5e5e5] dark:hover:bg-[#3f3f3f] transition-colors whitespace-nowrap gap-2 flex-shrink-0"
+                            >
+                                <DownloadIcon />
+                                <span className="text-sm font-semibold hidden sm:inline">ダウンロード</span>
+                            </button>
 
                             <button 
                                 onClick={() => setIsPlaylistModalOpen(true)} 
@@ -723,6 +665,14 @@ const VideoPlayerPage: React.FC = () => {
             {isPlaylistModalOpen && (
                 <PlaylistModal isOpen={isPlaylistModalOpen} onClose={() => setIsPlaylistModalOpen(false)} video={videoForPlaylistModal} />
             )}
+            
+            <DownloadModal 
+                isOpen={isDownloadModalOpen} 
+                onClose={() => setIsDownloadModalOpen(false)} 
+                streamData={streamData}
+                isLoading={isStreamDataLoading}
+                onRetry={fetchStreamDataIfNeeded}
+            />
         </div>
     );
 };
