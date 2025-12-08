@@ -189,7 +189,7 @@ const VideoPlayerPage: React.FC = () => {
                         setVideoDetails(details);
                         // Request: No XRAI, just 20 items whatever they are.
                         if (details.relatedVideos && details.relatedVideos.length > 0) {
-                            setRelatedVideos(details.relatedVideos.slice(0, 20));
+                            setRelatedVideos(details.relatedVideos.slice(0, 50));
                         }
                         addVideoToHistory(details);
                         setIsLoading(false);
