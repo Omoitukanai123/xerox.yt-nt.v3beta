@@ -16,6 +16,30 @@ export default defineConfig(({ mode }) => {
           '@': path.resolve(__dirname),
         }
       },
+      build: {
+        chunkSizeWarningLimit: 6000,
+        rollupOptions: {
+          output: {
+            manualChunks(id) {
+              if (id.includes('node_modules')) {
+                if (id.includes('@mlc-ai/web-llm')) {
+                  return 'web-llm-vendor';
+                }
+                if (id.includes('youtubei.js')) {
+                  return 'youtubei-vendor';
+                }
+                if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                  return 'react-vendor';
+                }
+                if (id.includes('hls.js')) {
+                  return 'hls-vendor';
+                }
+                return 'vendor';
+              }
+            },
+          },
+        },
+      },
       server: {
         host: '0.0.0.0',
         port: 5000,
