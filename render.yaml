@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: xeroxyt-nt
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node api/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/fvideo
+    autoDeploy: true
