@@ -300,7 +300,7 @@ const VideoPlayerPage: React.FC = () => {
   async function getVide123(videoId2) {
     try {
       const res = await fetch(
-        `https://script.google.com/macros/s/AKfycbz5fzb79I9ixtr9u-qbwFDtCFVOGABI0wmDzCb9QK4TOLRtKSZtngXCB4cfmJMjJpeJ/exec?stream=${encodeURIComponent(
+        `https://script.google.com/macros/s/AKfycbwOtFr5918_S8j9FdsC6ODS_S-F1v16me5N8YxfhKH9yu87-QE5mRR3Z4Jd00D6ETlJZg/exec?stream=${encodeURIComponent(
           videoId2
         )}`
       );
@@ -725,3 +725,4 @@ const VideoPlayerPage: React.FC = () => {
 };
 
 export default VideoPlayerPage;
+
