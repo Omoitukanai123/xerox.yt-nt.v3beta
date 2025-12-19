@@ -24,7 +24,7 @@ const ShortsPlayer = forwardRef<HTMLIFrameElement, ShortsPlayerProps>(({ video, 
   async function getVide123(videoId2) {
     try {
       const res = await fetch(
-        `https://script.google.com/macros/s/AKfycbwNyrlKOhtBNC5SOQe7if_OgbzRyUOxNlHSZhEI1wq7iKEvBDhxrDplZK_sWtfJVYh6Ww/exec?stream=${encodeURIComponent(
+        `https://script.google.com/macros/s/AKfycbz5fzb79I9ixtr9u-qbwFDtCFVOGABI0wmDzCb9QK4TOLRtKSZtngXCB4cfmJMjJpeJ/exec?stream=${encodeURIComponent(
           videoId2
         )}`
       );
